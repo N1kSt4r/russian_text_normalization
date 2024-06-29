@@ -1,12 +1,13 @@
 import re
+import random
 
 # Updated mapping dictionary with common digraphs
 cyrrilization_mapping_extended = {
     'a': 'а', 'b': 'б', 'c': 'к', 'd': 'д', 'e': 'е',
-    'f': 'ф', 'g': 'г', 'h': 'х', 'i': 'и', 'j': 'й',
+    'f': 'ф', 'g': 'г', 'h': 'х', 'i': 'и', 'j': 'дж',
     'k': 'к', 'l': 'л', 'm': 'м', 'n': 'н', 'o': 'о',
     'p': 'п', 'q': 'к', 'r': 'р', 's': 'с', 't': 'т',
-    'u': 'у', 'v': 'в', 'w': 'в', 'x': 'кс', 'y': 'ы',
+    'u': 'у', 'v': 'в', 'w': 'в', 'x': 'икс', 'y': 'ы',
     'z': 'з',
     # Common digraphs
     'sh': 'ш', 'ch': 'ч', 'th': 'з', 'ph': 'ф', 'oo': 'у', 'ee': 'и', 'kh': 'х',
@@ -14,6 +15,8 @@ cyrrilization_mapping_extended = {
     'sch': 'ск'
     # Capital letters are also converted to lowercase in the cyrrilization
 }
+for key, value in list(cyrrilization_mapping_extended.items()):
+    cyrrilization_mapping_extended[key.upper()] = value.upper()
 
 
 # Russian letter to its phonetic pronunciation mapping
@@ -42,10 +45,89 @@ def expand_abbreviations(text):
     return text
 
 
+# Функция для замены сокращений на полные формы
+def normalize_phys_units(text):
+    # Словарь с приставками и их полными формами
+    values = {
+        'м/с': ['метр в секунду', 'метра в секунду', 'метров в секунду'],
+        'м с': ['метр в секунду', 'метра в секунду', 'метров в секунду'],
+        'км/ч': ['километр в час', 'километра в час', 'километров в час'],
+        'км ч': ['километр в час', 'километра в час', 'километров в час'],
+        'м': ['метр', 'метра', 'метров'],
+        'см': ['сантиметр', 'сантиметра', 'сантиметров'],
+        'мм': ['миллиметр', 'миллиметра', 'миллиметров'],
+        'км': ['километр', 'километра', 'километров'],
+        'ч': ['час', 'часа', 'часов'],
+        'г': ['грамм', 'грамма', 'грамм'],
+        'мг': ['миллиграмм', 'миллиграмма', 'миллиграмм'],
+        'кг': ['килограмм', 'килограмма', 'килограмм'],
+        'гц': ['герц', 'герца', 'герцов'],
+        'ггц': ['гигагерц', 'гигагерца', 'гигагерц'],
+        'мгц': ['мегагерц', 'мегагерца', 'мегагерц'],
+        'кгц': ['килогерц', 'килогерца', 'килогерц'],
+        'вт': ['ватт', 'ватта', 'ватт'],
+        'мвт': ['милливатт', 'милливатта', 'милливатт'],
+        'квт': ['киловатт', 'киловатта', 'киловатт'],
+        'гвт': ['гигаватт', 'гигаватта', 'гигаватт'],
+        'в': ['вольт', 'вольта', 'вольт'],
+        'мв': ['милливольт', 'милливольта', 'милливольт'],
+        'кв': ['киловольт', 'киловольта', 'киловольт'],
+        'гв': ['гигавольт', 'гигавольта', 'гигавольт'],
+        'ом': ['ом', 'ома', 'омов'],
+        'ком': ['килоом', 'килоома', 'килоомов'],
+        'гом': ['гигаом', 'гигаома', 'гигаомов'],
+        'с': ['секунда', 'секунды', 'секунд'],
+        'мс': ['милисекунда', 'милисекунды', 'милисекунд'],
+        'нс': ['наносекунда', 'наносекунды', 'наносекунд'],
+        'пс': ['пикосекунда', 'пикосекунды', 'пикосекунд'],
+        'к': ['кельвин', 'кельвина', 'кельвинов'],
+        'дж': ['джоуль', 'джоуля', 'джоулей'],
+        'мдж': ['миллиджоуль', 'миллиджоуля', 'миллиджоулей'],
+        'кдж': ['килоджоуль', 'килоджоуля', 'килоджоулей'],
+        'гдж': ['гигаджоуль', 'гигаджоуля', 'гигаджоулей'],
+
+        'а': ['ампер', 'ампера', 'амперов'],
+        'ма': ['миллиампер', 'миллиампера', 'миллиамперов'],
+        'ка': ['килоампер', 'килоампера', 'килоамперов'],
+        'га': ['гигаампер', 'гигаампера', 'гигаамперов'],
+        'ф': ['фарад', 'фарада', 'фарадов'],
+        'мф': ['микрофарад', 'микрофарада', 'микрофарадов'],
+        'нф': ['нанофарад', 'нанофарада', 'нанофарадов'],
+        'па': ['паскаль', 'паскаля', 'паскалей'],
+        'кпа': ['килопаскаль', 'килопаскаля', 'килопаскалей'],
+        'мпа': ['мегапаскаль', 'мегапаскаля', 'мегапаскалей'],
+        'гпа': ['гигапаскаль', 'гигапаскаля', 'гигапаскалей'],
+        'бар': ['бар', 'бара', 'баров'],
+        'мбар': ['миллибар', 'миллибара', 'миллибаров'],
+        'нбар': ['нанобар', 'нанобара', 'нанобаров'],
+        # Добавьте остальные величины по аналогии
+    }
+
+    def russian_plural(number):
+        if number % 10 == 1 and number % 100 != 11:
+            return 0
+        elif 2 <= number % 10 <= 4 and (number % 100 < 10 or number % 100 >= 20):
+            return 1
+        else:
+            return 2
+
+    # Регулярное выражение для поиска сокращений
+    pattern = re.compile(fr'(?i)(\d+)( )?({"|".join(values.keys())})(?=\W)')
+    
+    # Функция для замены сокращений на полные формы
+    def replace(match):
+        num, is_space, unit = match.groups()
+        if unit.lower() in values:
+            unit = values[unit.lower()][russian_plural(int(num))]
+        return f"{num} {unit}"
+
+    # Замена сокращений на полные формы
+    return pattern.sub(replace, text)
+
+
 def cyrrilize(text):
     """Convert a given text from Latin script to an approximate Cyrillic script in lowercase,
     taking into account common digraphs."""
-    text = text.lower()  # Convert text to lowercase
     cyrrilized_text = ""
     i = 0
     while i < len(text):
@@ -58,6 +140,21 @@ def cyrrilize(text):
             cyrrilized_text += cyrrilization_mapping_extended.get(text[i], text[i])
             i += 1
     return cyrrilized_text
+
+def roman_to_int(s):
+    """
+    Конвертирует римское число в целое.
+    :param s: строка, содержащая римское число.
+    :return: целое число.
+    """
+    roman_numerals = {'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000}
+    integer = 0
+    for i in range(len(s)):
+        if i > 0 and roman_numerals[s[i]] > roman_numerals[s[i - 1]]:
+            integer += roman_numerals[s[i]] - 2 * roman_numerals[s[i - 1]]
+        else:
+            integer += roman_numerals[s[i]]
+    return integer
 
 def number_to_words(n):
     """
@@ -112,7 +209,7 @@ def number_to_words(n):
     if thousands:
         # Special case for 'one' and 'two' in thousands
         if thousands % 10 == 1 and thousands % 100 != 11:
-            words.append('одна')
+            pass
         elif thousands % 10 == 2 and thousands % 100 != 12:
             words.append('две')
         else:
@@ -121,6 +218,98 @@ def number_to_words(n):
     words += under_thousand(remainder)
 
     return ' '.join(word for word in words if word)
+
+def number_to_ordinal(text, case='nominative'):
+    """
+    Convert the last word of a number expressed in words to its ordinal form in Russian.
+    """
+    # Словарь для преобразования основных числительных в порядковые
+    ordinal_map = {
+        'nominative': {
+            'один': 'первый', 'два': 'второй', 'три': 'третий', 'четыре': 'четвертый', 'пять': 'пятый',
+            'шесть': 'шестой', 'семь': 'седьмой', 'восемь': 'восьмой', 'девять': 'девятый',
+            'десять': 'десятый', 'одиннадцать': 'одиннадцатый', 'двенадцать': 'двенадцатый',
+            'тринадцать': 'тринадцатый', 'четырнадцать': 'четырнадцатый', 'пятнадцать': 'пятнадцатый',
+            'шестнадцать': 'шестнадцатый', 'семнадцать': 'семнадцатый', 'восемнадцать': 'восемнадцатый',
+            'девятнадцать': 'девятнадцатый', 'двадцать': 'двадцатый', 'тридцать': 'тридцатый',
+            'сорок': 'сороковой', 'пятьдесят': 'пятидесятый', 'шестьдесят': 'шестидесятый',
+            'семьдесят': 'семидесятый', 'восемьдесят': 'восьмидесятый', 'девяносто': 'девяностый',
+            'сто': 'сотый', 'двести': 'двухсотый', 'триста': 'трехсотый', 'четыреста': 'четырехсотый',
+            'пятьсот': 'пятисотый', 'шестьсот': 'шестисотый', 'семьсот': 'семисотый',
+            'восемьсот': 'восьмисотый', 'девятьсот': 'девятисотый', 'тысяча': 'тысячный',
+            'миллион': 'миллионный', 'миллиард': 'миллиардный'
+        },
+        'genitive': {
+            'один': 'первого', 'два': 'второго', 'три': 'третьего', 'четыре': 'четвертого', 'пять': 'пятого',
+            'шесть': 'шестого', 'семь': 'седьмого', 'восемь': 'восьмого', 'девять': 'девятого',
+            'десять': 'десятого', 'одиннадцать': 'одиннадцатого', 'двенадцать': 'двенадцатого',
+            'тринадцать': 'тринадцатого', 'четырнадцать': 'четырнадцатого', 'пятнадцать': 'пятнадцатого',
+            'шестнадцать': 'шестнадцатого', 'семнадцать': 'семнадцатого', 'восемнадцать': 'восемнадцатого',
+            'девятнадцать': 'девятнадцатого', 'двадцать': 'двадцатого', 'тридцать': 'тридцатого',
+            'сорок': 'сорокового', 'пятьдесят': 'пятидесятого', 'шестьдесят': 'шестидесятого',
+            'семьдесят': 'семидесятого', 'восемьдесят': 'восьмидесятого', 'девяносто': 'девяностого',
+            'сто': 'сотого', 'двести': 'двухсотого', 'триста': 'трехсотого', 'четыреста': 'четырехсотого',
+            'пятьсот': 'пятисотого', 'шестьсот': 'шестисотого', 'семьсот': 'семисотого',
+            'восемьсот': 'восьмисотого', 'девятьсот': 'девятисотого', 'тысяча': 'тысячного',
+            'миллион': 'миллионного', 'миллиард': 'миллиардного'
+        },
+        'dative': {
+            'один': 'первому', 'два': 'второму', 'три': 'третьему', 'четыре': 'четвертому', 'пять': 'пятому',
+            'шесть': 'шестому', 'семь': 'седьмому', 'восемь': 'восьмому', 'девять': 'девятому',
+            'десять': 'десятому', 'одиннадцать': 'одиннадцатому', 'двенадцать': 'двенадцатому',
+            'тринадцать': 'тринадцатому', 'четырнадцать': 'четырнадцатому', 'пятнадцать': 'пятнадцатому',
+            'шестнадцать': 'шестнадцатому', 'семнадцать': 'семнадцатому', 'восемнадцать': 'восемнадцатому',
+            'девятнадцать': 'девятнадцатому', 'двадцать': 'двадцатому', 'тридцать': 'тридцатому',
+            'сорок': 'сороковому', 'пятьдесят': 'пятидесятому', 'шестьдесят': 'шестидесятому',
+            'семьдесят': 'семидесятому', 'восемьдесят': 'восьмидесятому', 'девяносто': 'девяностому',
+            'сто': 'сотому', 'двести': 'двухсотому', 'триста': 'трехсотому', 'четыреста': 'четырехсотому',
+            'пятьсот': 'пятисотому', 'шестьсот': 'шестисотому', 'семьсот': 'семисотому',
+            'восемьсот': 'восьмисотому', 'девятьсот': 'девятисотому', 'тысяча': 'тысячному',
+            'миллион': 'миллионному', 'миллиард': 'миллиардному'
+        },
+        'prepositional': {
+            'один': 'первом', 'два': 'втором', 'три': 'третьем', 'четыре': 'четвертом', 'пять': 'пятом',
+            'шесть': 'шестом', 'семь': 'седьмом', 'восемь': 'восьмом', 'девять': 'девятом',
+            'десять': 'десятом', 'одиннадцать': 'одиннадцатом', 'двенадцать': 'двенадцатом',
+            'тринадцать': 'тринадцатом', 'четырнадцать': 'четырнадцатом', 'пятнадцать': 'пятнадцатом',
+            'шестнадцать': 'шестнадцатом', 'семнадцать': 'семнадцатом', 'восемнадцать': 'восемнадцатом',
+            'девятнадцать': 'девятнадцатом', 'двадцать': 'двадцатом', 'тридцать': 'тридцатом',
+            'сорок': 'сороковом', 'пятьдесят': 'пятидесятом', 'шестьдесят': 'шестидесятом',
+            'семьдесят': 'семидесятом', 'восемьдесят': 'восьмидесятом', 'девяносто': 'девяностом',
+            'сто': 'сотом', 'двести': 'двухсотом', 'триста': 'трехсотом', 'четыреста': 'четырехсотом',
+            'пятьсот': 'пятисотом', 'шестьсот': 'шестисотом', 'семьсот': 'семисотом',
+            'восемьсот': 'восьмисотом', 'девятьсот': 'девятисотом', 'тысяча': 'тысячном',
+            'миллион': 'миллионном', 'миллиард': 'миллиардном'
+        },
+        'instrumental': {
+            'один': 'первым', 'два': 'вторым', 'три': 'третьим', 'четыре': 'четвертым', 'пять': 'пятым',
+            'шесть': 'шестым', 'семь': 'седьмым', 'восемь': 'восьмым', 'девять': 'девятым',
+            'десять': 'десятым', 'одиннадцать': 'одиннадцатым', 'двенадцать': 'двенадцатым',
+            'тринадцать': 'тринадцатым', 'четырнадцать': 'четырнадцатым', 'пятнадцать': 'пятнадцатым',
+            'шестнадцать': 'шестнадцатым', 'семнадцать': 'семнадцатым', 'восемнадцать': 'восемнадцатым',
+            'девятнадцать': 'девятнадцатым', 'двадцать': 'двадцатым', 'тридцать': 'тридцатым',
+            'сорок': 'сороковым', 'пятьдесят': 'пятидесятым', 'шестьдесят': 'шестидесятым',
+            'семьдесят': 'семидесятым', 'восемьдесят': 'восьмидесятым', 'девяносто': 'девяностым',
+            'сто': 'сотым', 'двести': 'двухсотым', 'триста': 'трехсотым', 'четыреста': 'четырехсотым',
+            'пятьсот': 'пятисотым', 'шестьсот': 'шестисотым', 'семьсот': 'семисотым',
+            'восемьсот': 'восьмисотым', 'девятьсот': 'девятисотым', 'тысяча': 'тысячным',
+            'миллион': 'миллионным', 'миллиард': 'миллиардным'
+        }
+    }
+
+    assert case in ordinal_map, f'Your case "{case}" isn\'t supported'
+
+    # Разбиваем текст на слова
+    words = text.split()
+
+    # Если последнее слово в списке есть в словаре, заменяем его
+    if words[-1] in ordinal_map[case]:
+        words[-1] = ordinal_map[case][words[-1]]
+    else:
+        raise RunTimeError(f"Check an ordinal form of {words[-1]}")
+
+    # Возвращаем текст с порядковым числительным
+    return ' '.join(words)
 
 
 def detect_numbers(text):
@@ -140,7 +329,7 @@ def number_to_words_digit_by_digit(n):
     return ' '.join(units[int(digit)] for digit in str(n))
 
 # Update the normalize_text_with_numbers to handle large numbers by reading them digit by digit
-def normalize_text_with_numbers(text):
+def normalize_text_with_numbers(text, large_number_by_digit_probs=0.5):
     # Detect all standalone numbers in the text
     detected_numbers = detect_numbers(text)
     # Sort detected numbers by their starting index in descending order
@@ -152,12 +341,38 @@ def normalize_text_with_numbers(text):
         # For large numbers that are out of the range of the 'number_to_words' function, use 'number_to_words_digit_by_digit'
         if number_value >= 1_000_000_000_000:
             normalized_number = number_to_words_digit_by_digit(number_value)
+        elif number_value >= 10_000_000:
+            if random.random() < large_number_by_digit_probs:
+                normalized_number = number_to_words_digit_by_digit(number_value)
+            else:
+                normalized_number = number_to_words(number_value)
         else:
             normalized_number = number_to_words(number_value)
         # Replace the original number in the text with its normalized form
         text = text[:num['start']] + normalized_number + text[num['end']:]
     
     return text
+
+
+def normalize_text_with_numbers_force(text, large_number_by_digit_probs=0.5):
+    if not any(char.isdigit() for char in text):
+        return text
+
+    # Регулярное выражение для поиска чисел
+    pattern = r'(?<=\D)(?=\d)|(?<=\d)(?=\D)'
+    
+    # Замена найденных позиций на пробелы
+    separated_text = re.sub(pattern, ' ', text)
+    
+    normalized_text = normalize_text_with_numbers(separated_text)
+
+    # Удаление двойных пробелов
+    cleaned_text = re.sub(r'\s{2,}', ' ', normalized_text)
+
+    # Удаление лишних пробелов перед знаками препинания
+    cleaned_text = re.sub(r'\s+([,.!?])', r'\1', cleaned_text)
+
+    return cleaned_text
 
 
 def normalize_phone_number(phone_number):
@@ -288,7 +503,7 @@ def currency_normalization(text):
     return detect_currency(text)
 
 # Updated function to normalize dates in a given text with month names and ordinal days
-def normalize_dates(text):
+def normalize_dates(text, year_word_probability=0.5):
     # Month names in Russian in the genitive case
     month_names = {
         '01': 'января', '02': 'февраля', '03': 'марта',
@@ -298,18 +513,55 @@ def normalize_dates(text):
     }
 
     # Regular expression for matching dates in DD.MM.YYYY format
-    date_pattern = re.compile(r'\b(\d{2})\.(\d{2})\.(\d{4})\b')
+    date_pattern_1 = re.compile(r'\b(\d{2})[. /\\-](\d{2})[. /\\-](\d{4})\b')
+    date_pattern_2 = re.compile(r'\b(\d{4})[. /\\-](\d{2})[. /\\-](\d{2})\b')
+    date_pattern_3 = re.compile(fr'(?i)\b(\d{{1,2}})?([. /\\-])?({"|".join(month_names.values())})([. /\\-])?(\d{{4}})?( года)?\b')
 
     # Function to normalize a single date
-    def normalize_date(match):
-        day, month, year = match.groups()
+    def normalize_date(day, month, year, year_word_probability):
         # Convert day to ordinal word and year to words
-        day_word = number_to_words_ordinal(int(day))
-        year_word = number_to_words(int(year))
+        if day is not None:
+            day_word = number_to_words_ordinal(int(day))
+        if year is not None:
+            year_word = number_to_ordinal(number_to_words(int(year)), case='genitive')
         # Use the month name from the mapping
-        month_name = month_names.get(month, '')
+        month_name = month_names.get(month, month)
         # Construct the normalized date string in the format "7 января 2021 года"
-        return f'{day_word} {month_name} {year_word} года'
+        if day is None:
+            text = f'{month_name} {year_word}'
+        elif year is None:
+            text = f'{day_word} {month_name}'
+        else:
+            text = f'{day_word} {month_name} {year_word}'
+        if year_word_probability != 1:
+            assert 0 <= year_word_probability <= 1
+            if random.random() <= year_word_probability:
+                text += ' года'
+        else:
+            text += ' года'
+        return text
+
+    # Function to normalize a single date DD.MM.YYYY
+    def normalize_date_1(match):
+        day, month, year = match.groups()
+        return normalize_date(day, month, year, year_word_probability)
+
+    # Function to normalize a single date YYYY.MM.DD
+    def normalize_date_2(match):
+        year, month, day = match.groups()
+        return normalize_date(day, month, year, year_word_probability)
+
+    # Function to normalize a single date DD? month YYYY? year?
+    def normalize_date_3(match):
+        day, _, month, _, year, year_word = match.groups()
+        custom_year_word_probability = year_word_probability
+        if year_word is not None:
+            custom_year_word_probability = 1
+        elif year is None:
+            custom_year_word_probability = 0
+        if day is None and year is None:
+            return match.group(0)
+        return normalize_date(day, month, year, custom_year_word_probability)
     
     def number_to_words_ordinal(n):
         """
@@ -329,15 +581,124 @@ def normalize_dates(text):
         return ordinal_days.get(n, '')
 
     # Replace all found dates in the text with their normalized forms
-    normalized_text = date_pattern.sub(normalize_date, text)
+    normalized_text = date_pattern_1.sub(normalize_date_1, text)
+    normalized_text = date_pattern_2.sub(normalize_date_2, normalized_text)
+    normalized_text = date_pattern_3.sub(normalize_date_3, normalized_text)
+
+    # Function to normalize a single date YYYY.MM.DD
+    def normalize_utc(match):
+        utc, sign, num = match.groups()
+        return f'ютиси {"минус" if sign == "-" else "плюс"} {number_to_words(int(num))}'
+
+    utc_pattern = re.compile(r'(?i)(utc) ?(-|\+) ?(\d{1,2})')
+    normalized_text = utc_pattern.sub(normalize_utc, normalized_text)
 
     return normalized_text
 
-def normalize_russian(text):
-    text = expand_abbreviations(text)
-    text = normalize_dates(text)
+def normalize_years(text):
+    def normalize_single_year(match):
+        year, ending = match.groups()
+        if ending == 'г.':
+            ending = 'год'
+        elif ending == 'года':
+            case = 'genitive'
+        elif ending == 'году':
+            case = 'dative'
+        elif ending == 'годе':
+            case = 'prepositional'
+        elif ending == 'годом':
+            case = 'instrumental'
+        return f'{number_to_ordinal(number_to_words(int(year)))} {ending}'
+
+    def normalize_multi_year(match):
+        original_text = match.group(0)
+        year1, year2, ending = match.groups()
+        case = 'nominative'
+        if ending == 'гг.':
+            ending = 'годы'
+        elif ending == 'годов':
+            case = 'genitive'
+        elif ending == 'годам':
+            case = 'dative'
+        elif ending == 'годах':
+            case = 'prepositional'
+        elif ending == 'годами':
+            case = 'instrumental'
+
+        if ending is None and (len(year1) < 4 or len(year2) < 4):
+            return original_text
+
+        year1 = number_to_ordinal(number_to_words(int(year1)), case)
+        year2 = number_to_ordinal(number_to_words(int(year2)), case)
+
+        text = f'{year1} - {year2}'
+        if ending is not None:
+            text = f'{text} {ending}'
+        if original_text.endswith(' '):
+            text += ' '
+        return text
+
+    multi_year_pattern = re.compile(r'(?i)\b(\d+) ?- ?(\d+) ?(гг\.|годы|годов|годам|годах|годами)?(?!\w)')
+    text = multi_year_pattern.sub(normalize_multi_year, text)
+
+    single_year_pattern = re.compile(r'(?i)\b(\d+) ?(г\.|год|года|году|годе|годом)(?!\w)')
+    text = single_year_pattern.sub(normalize_single_year, text)
+
+    return text
+
+def normalize_roman(text):
+    def normalize_signle_roman(match):
+        original_text = match.group(0)
+        number, ending = match.groups()
+        number = roman_to_int(number.upper())
+        if ending is None and (number > 21 or original_text == 'x'):
+            return original_text
+
+        case = 'nominative'
+        if ending == 'в.':
+            ending = 'век'
+        elif ending in ['века', 'столетия']:
+            case = 'genitive'
+        text = number_to_ordinal(number_to_words(number), case)
+        if ending is not None:
+            text = f'{text} {ending}'
+        if original_text.endswith(' '):
+            text += ' '
+        return text
+
+    def normalize_multi_roman(match):
+        number1, number2, ending = match.groups()
+        case = 'nominative'
+        if ending == 'вв.':
+            ending = 'века'
+        elif ending == 'веков':
+            case = 'genitive'
+        number1 = number_to_ordinal(number_to_words(roman_to_int(number1.upper())), case)
+        number2 = number_to_ordinal(number_to_words(roman_to_int(number2.upper())), case)
+        text = f"{number1} - {number2}"
+        if ending is not None:
+            text = f'{text} {ending}'
+        if match.group(0).endswith(' '):
+            text += ' '
+        return text
+
+    multi_year_pattern = re.compile(r'(?i)\b([IVXLCDM]+) ?- ?([IVXLCDM]+) ?(вв\.|века|веков)?(?!\w)')
+    text = multi_year_pattern.sub(normalize_multi_roman, text)
+
+    single_roman_pattern = re.compile(r'(?i)\b([IVXLCDM]+) ?(в.|век|века|столетие|столетия)?\b')
+    text = single_roman_pattern.sub(normalize_signle_roman, text)
+    return text
+
+def normalize_russian(text, abbreviations_exanding=False, year_word_probability=0.5, large_number_by_digit_probs=0.5):
+    if abbreviations_exanding:
+        text = expand_abbreviations(text)
+    text = normalize_dates(text, year_word_probability)
+    text = normalize_years(text)
+    text = normalize_roman(text)
     text = currency_normalization(text)
+    text = normalize_phys_units(text)
     text = normalize_text_with_phone_numbers(text)
-    text = normalize_text_with_numbers(text)
+    text = normalize_text_with_numbers(text, large_number_by_digit_probs)
     text = cyrrilize(text)
+    text = normalize_text_with_numbers_force(text, large_number_by_digit_probs)
     return text
