@@ -557,7 +557,7 @@ def normalize_dates(text, year_word_probability=0.5):
     # Regular expression for matching dates in DD.MM.YYYY format
     date_pattern_1 = re.compile(r'\b(\d{2})[. /\\-](\d{2})[. /\\-](\d{4})\b')
     date_pattern_2 = re.compile(r'\b(\d{4})[. /\\-](\d{2})[. /\\-](\d{2})\b')
-    date_pattern_3 = re.compile(fr'(?i)\b(\d{{1,2}})?([. /\\-])?({"|".join(month_names.values())})([. /\\-])?(\d{{4}})?( года)?\b')
+    date_pattern_3 = re.compile(fr'(?i)\b(\d{{1,2}})?([. /\\-])?({"|".join(month_names.values())})([. /\\-])?(\d{{4}})?\s*(г\.|года)?(?!\S)')
 
     # Function to normalize a single date
     def normalize_date(day, month, year, year_word_probability):
@@ -597,6 +597,7 @@ def normalize_dates(text, year_word_probability=0.5):
     def normalize_date_3(match):
         day, _, month, _, year, year_word = match.groups()
         custom_year_word_probability = year_word_probability
+        print(match.group(0), day, month, year, year_word)
         if year_word is not None:
             custom_year_word_probability = 1
         elif year is None:
