@@ -147,7 +147,7 @@ def roman_to_int(s):
     :param s: строка, содержащая римское число.
     :return: целое число.
     """
-    roman_numerals = {'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000}
+    roman_numerals = {'I': 1, 'V': 5, 'X': 10, 'Х': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000}
     integer = 0
     for i in range(len(s)):
         if i > 0 and roman_numerals[s[i]] > roman_numerals[s[i - 1]]:
@@ -252,6 +252,20 @@ def number_to_ordinal(text, case='nominative'):
             'пятьсот': 'пятисотое', 'шестьсот': 'шестисотое', 'семьсот': 'семисотое',
             'восемьсот': 'восьмисотое', 'девятьсот': 'девятисотое', 'тысяча': 'тысячное',
             'миллион': 'миллионное', 'миллиард': 'миллиардное'
+        },
+        'nominative_feminine': {
+            'один': 'первая', 'два': 'вторая', 'три': 'третья', 'четыре': 'четвертая', 'пять': 'пятая',
+            'шесть': 'шестая', 'семь': 'седьмая', 'восемь': 'восьмая', 'девять': 'девятая',
+            'десять': 'десятая', 'одиннадцать': 'одиннадцатая', 'двенадцать': 'двенадцатая',
+            'тринадцать': 'тринадцатая', 'четырнадцать': 'четырнадцатая', 'пятнадцать': 'пятнадцатая',
+            'шестнадцать': 'шестнадцатая', 'семнадцать': 'семнадцатая', 'восемнадцать': 'восемнадцатая',
+            'девятнадцать': 'девятнадцатая', 'двадцать': 'двадцатая', 'тридцать': 'тридцатая',
+            'сорок': 'сороковая', 'пятьдесят': 'пятидесятая', 'шестьдесят': 'шестидесятая',
+            'семьдесят': 'семидесятая', 'восемьдесят': 'восьмидесятая', 'девяносто': 'девяностая',
+            'сто': 'сотая', 'двести': 'двухсотая', 'триста': 'трехсотая', 'четыреста': 'четырехсотая',
+            'пятьсот': 'пятисотая', 'шестьсот': 'шестисотая', 'семьсот': 'семисотая',
+            'восемьсот': 'восьмисотая', 'девятьсот': 'девятисотая', 'тысяча': 'тысячная',
+            'миллион': 'миллионная', 'миллиард': 'миллиардная'
         },
         'nominative_plural': {
             'один': 'первые', 'два': 'вторые', 'три': 'третьи', 'четыре': 'четвертые', 'пять': 'пятые',
@@ -362,7 +376,44 @@ def number_to_ordinal(text, case='nominative'):
     if words[-1] in ordinal_map[case]:
         words[-1] = ordinal_map[case][words[-1]]
     else:
-        raise RunTimeError(f"Check an ordinal form of {words[-1]}")
+        if words[-1] in ('тысяча', 'тысячи', 'тысяч'):
+            # Словарь с порядковыми числительными для разных падежей
+            ordinal_endings = {
+                'nominative': 'ый',
+                'nominative_neuter': 'ое',
+                'nominative_plural': 'ые',
+                'genitive': 'ого',
+                'genitive_plural': 'ых',
+                'dative': 'ому',
+                'dative_plural': 'ым',
+                'prepositional': 'ом',
+                'instrumental': 'ым',
+            }
+
+            base_word = words[-2]
+            # Словарь для преобразования числительных в основу порядкового числительного
+            base_to_ordinal = {
+                'одна': 'одно',
+                'две': 'двух',
+                'три': 'трех',
+                'четыре': 'четырех',
+                'пять': 'пяти',
+                'шесть': 'шести',
+                'семь': 'семи',
+                'восемь': 'восьми',
+                'девять': 'девяти',
+                # Добавить остальные числительные по необходимости
+            }
+            # Получаем основу порядкового числительного
+            ordinal_base = base_to_ordinal.get(base_word)
+            if not ordinal_base:
+                raise ValueError(f"Числительное '{base_word}' не поддерживается.")
+            
+            # Добавляем окончание в зависимости от падежа
+            ordinal = ordinal_base + 'тысячн' + ordinal_endings[case]
+            return ordinal
+            
+        raise RuntimeError(f"Check an ordinal form of {words[-1]} with {case} case. Original text: {text}")
 
     # Возвращаем текст с порядковым числительным
     return ' '.join(words)
@@ -573,9 +624,9 @@ def normalize_dates(text, year_word_probability=0.5, genitive_ordinal_day_probab
     }
 
     # Regular expression for matching dates in DD.MM.YYYY format
-    date_pattern_1 = re.compile(r'\b(\d{2})[. /\\-]{1,2}(\d{2})[. /\\-]{1,2}(\d{4})\s*(г\.|года)?(?!\S)')
+    date_pattern_1 = re.compile(r'\b(\d{2})[. /\\-]{1,2}(\d{2})[. /\\-]{1,2}(\d{4})(\s*г\.|\s*года)?(?!\w)')
     date_pattern_2 = re.compile(r'\b(\d{4})[. /\\-]{1,2}(\d{2})[. /\\-]{1,2}(\d{2})\b')
-    date_pattern_3 = re.compile(fr'(?i)\b(\d{{1,2}})?([. /\\-])?({"|".join(month_names.values())})([. /\\-])?(\d{{4}})?\s*(г\.|года)?(?!\S)')
+    date_pattern_3 = re.compile(fr'(?i)\b((\d{{1,2}})[. /\\-]{{0,2}})?({"|".join(month_names.values())})([. /\\-]{{0,2}}(\d{{4}}))?(\s*г\.|\s*года)?(?!\w)')
 
     # Function to normalize a single date
     def normalize_date(day, month, year, year_word_probability):
@@ -660,21 +711,22 @@ def normalize_dates(text, year_word_probability=0.5, genitive_ordinal_day_probab
 def normalize_years(text):
     def normalize_single_year(match):
         year, ending = match.groups()
+        case = 'nominative'
         if ending == 'г.':
             ending = 'год'
         elif ending == 'года':
             case = 'genitive'
         elif ending == 'году':
-            case = 'dative'
+            case = 'prepositional'
         elif ending == 'годе':
             case = 'prepositional'
         elif ending == 'годом':
             case = 'instrumental'
-        return f'{number_to_ordinal(number_to_words(int(year)))} {ending}'
+        return f'{number_to_words_ordinal(int(year), case)} {ending}'
 
     def normalize_multi_year(match):
         original_text = match.group(0)
-        year1, year2, ending = match.groups()
+        prefix, year1, union, year2, _, ending = match.groups()
         case = 'nominative'
         if ending == 'гг.':
             ending = 'годы'
@@ -690,17 +742,23 @@ def normalize_years(text):
         if ending is None and (len(year1) < 4 or len(year2) < 4):
             return original_text
 
-        year1 = number_to_ordinal(number_to_words(int(year1)), case)
-        year2 = number_to_ordinal(number_to_words(int(year2)), case)
+        if prefix is not None:
+            year1 = number_to_ordinal(number_to_words(int(year1)), 'genitive')
+            year2 = number_to_ordinal(number_to_words(int(year2)), 'nominative')
+        else:
+            year1 = number_to_ordinal(number_to_words(int(year1)), case)
+            year2 = number_to_ordinal(number_to_words(int(year2)), case)
 
-        text = f'{year1} - {year2}'
+        text = f'{year1} {union} {year2}'
+        if prefix is not None:
+            text = f'{prefix}{text}'
         if ending is not None:
             text = f'{text} {ending}'
         if original_text.endswith(' '):
             text += ' '
         return text
 
-    multi_year_pattern = re.compile(r'(?i)\b(\d+) ?- ?(\d+) ?(гг\.|годы|годов|годам|годах|годами)?(?!\w)')
+    multi_year_pattern = re.compile(r'(?i)\b(С )?(\d+) ?(-|по) ?(\d+)( ?(гг\.|годы|годов|годам|годах|годами))?(?!\w)')
     text = multi_year_pattern.sub(normalize_multi_year, text)
 
     single_year_pattern = re.compile(r'(?i)\b(\d+) ?(г\.|год|года|году|годе|годом)(?!\w)')
@@ -714,7 +772,8 @@ def normalize_ordinals_years(text):
         num, ending = match.groups()
         cases = [
             'nominative', 'genitive', 'dative', 'prepositional', 'instrumental',
-            'nominative_plural', 'genitive_plural', 'dative_plural']
+            'nominative_plural', 'nominative_feminine', 'nominative_neuter',
+            'genitive_plural', 'dative_plural']
         num = number_to_words(int(num))
         for case in cases:
             maybe_text = number_to_ordinal(num, case)
@@ -729,17 +788,24 @@ def normalize_ordinals_years(text):
 def normalize_roman(text):
     def normalize_signle_roman(match):
         original_text = match.group(0)
-        str_number, ending = match.groups()
+        str_number, _, ending = match.groups()
         number = roman_to_int(str_number.upper())
-        if ending is None and len(str_number) < 4 and (number > 21 or original_text in 'xi'):
+        if ending is None and len(str_number) < 4 and (number > 21 or original_text in 'xхi'):
             return original_text
 
         case = 'nominative'
         if ending == 'в.':
             ending = 'век'
-        elif ending in ['века', 'столетия']:
+        if ending == 'ст.':
+            ending = 'столетие'
+            case = 'nominative_neuter'
+        if ending in ['века', 'столетия']:
             case = 'genitive'
-        text = number_to_ordinal(number_to_words(number), case)
+        elif ending in ['веку', 'столетию']:
+            case = 'dative'
+        elif ending in ['веке', 'столетии']:
+            case = 'prepositional'
+        text = number_to_words_ordinal(number, case)
         if ending is not None:
             text = f'{text} {ending}'
         if original_text.endswith(' '):
@@ -747,12 +813,19 @@ def normalize_roman(text):
         return text
 
     def normalize_multi_roman(match):
-        number1, number2, ending = match.groups()
+        number1, number2, _, ending = match.groups()
         case = 'nominative'
         if ending == 'вв.':
             ending = 'века'
-        elif ending == 'веков':
+        if ending == 'ст.':
+            ending = 'столетия'
+            case = 'nominative_neuter'
+        elif ending in ['веков', 'столетий']:
             case = 'genitive'
+        elif ending in ['векам', 'столетиям']:
+            case = 'dative'
+        elif ending in ['веках', 'столетиях']:
+            case = 'prepositional'
         number1 = number_to_ordinal(number_to_words(roman_to_int(number1.upper())), case)
         number2 = number_to_ordinal(number_to_words(roman_to_int(number2.upper())), case)
         text = f"{number1} - {number2}"
@@ -762,10 +835,10 @@ def normalize_roman(text):
             text += ' '
         return text
 
-    multi_year_pattern = re.compile(r'(?i)\b([IVXLCDM]+) ?- ?([IVXLCDM]+) ?(вв\.|века|веков)?(?!\w)')
+    multi_year_pattern = re.compile(r'(?i)\b([IVXХLCDM]+) ?- ?([IVXХLCDM]+)( ?(вв\.|ст\.|века|столетия|веков|столетий|веках|столетиях|векам|столетиям))?(?!\w)')
     text = multi_year_pattern.sub(normalize_multi_roman, text)
 
-    single_roman_pattern = re.compile(r'(?i)\b([IVXLCDM]+) ?(в.|век|века|столетие|столетия)?\b')
+    single_roman_pattern = re.compile(r'(?i)\b([IVXХLCDM]+)( ?(в\.|век|века|веке|веку|ст\.|столетие|столетия|столетии|столетию))?(?!\w)')
     text = single_roman_pattern.sub(normalize_signle_roman, text)
     return text
 
