@@ -60,8 +60,9 @@ def normalize_abbreviations(text):
         'т.д.': 'так далее',
         'т.п.': 'тому подобное',
         'т.о.': 'таким образом',
-        'p.s.': 'постскриптум',
-        'п.с.': 'постскриптум',
+        'p.s.': 'постскриптум.',
+        'р.s.': 'постскриптум.',
+        'п.с.': 'постскриптум.',
         'н.э.': 'нашей эры',
     }
 
@@ -73,7 +74,6 @@ def normalize_abbreviations(text):
         'пр': 'проспект',
         'пл': 'площадь',
         'ул': 'улица',
-        'у': 'улица',
         'г': 'город',
     }
 
@@ -86,10 +86,7 @@ def normalize_abbreviations(text):
         sep = ' ?'
         return [sep.join(key).replace('.', r'\.') for key in abbreviations_set]
 
-    for key, value in abbreviations_type_0.items():
-        text = text.replace(key, value)
-
-    # Регулярное выражение для поиска сокращений
+    abbreviations_pattern_type_0 = re.compile(fr'(?i)\b({"|".join(abbreviations_type_0.keys())})(?!\w)')
     abbreviations_pattern_type_1 = re.compile(fr'(?i)\b({"|".join(modify_set(abbreviations_type_1.keys()))})(?!\w)')
     abbreviations_pattern_type_2 = re.compile(fr'\b({"|".join(abbreviations_type_2.keys())})\.? ?(?=[А-Я])')
     abbreviations_pattern_type_3 = re.compile(fr'(?i)\b({"|".join(abbreviations_type_3.keys())})\.? ?(?=\d)')
@@ -104,6 +101,7 @@ def normalize_abbreviations(text):
             return abbreviation
         return replace
 
+    text = abbreviations_pattern_type_0.sub(get_replace(abbreviations_type_0), text)
     text = abbreviations_pattern_type_1.sub(get_replace(abbreviations_type_1), text)
     text = abbreviations_pattern_type_2.sub(get_replace(abbreviations_type_2, suffix=' '), text)
     text = abbreviations_pattern_type_3.sub(get_replace(abbreviations_type_3, suffix=' '), text)
@@ -143,10 +141,6 @@ def normalize_phys_units(text):
         'мвт': ['милливатт', 'милливатта', 'милливатт'],
         'квт': ['киловатт', 'киловатта', 'киловатт'],
         'гвт': ['гигаватт', 'гигаватта', 'гигаватт'],
-        'в': ['вольт', 'вольта', 'вольт'],
-        'мв': ['милливольт', 'милливольта', 'милливольт'],
-        'кв': ['киловольт', 'киловольта', 'киловольт'],
-        'гв': ['гигавольт', 'гигавольта', 'гигавольт'],
         'ом': ['ом', 'ома', 'омов'],
         'ком': ['килоом', 'килоома', 'килоомов'],
         'гом': ['гигаом', 'гигаома', 'гигаомов'],
@@ -162,10 +156,7 @@ def normalize_phys_units(text):
         'кдж': ['килоджоуль', 'килоджоуля', 'килоджоулей'],
         'гдж': ['гигаджоуль', 'гигаджоуля', 'гигаджоулей'],
 
-        'а': ['ампер', 'ампера', 'ампер'],
         'ма': ['миллиампер', 'миллиампера', 'миллиампер'],
-        'ка': ['килоампер', 'килоампера', 'килоампер'],
-        'га': ['гигаампер', 'гигаампера', 'гигаампер'],
         'ф': ['фарад', 'фарада', 'фарад'],
         'мф': ['микрофарад', 'микрофарада', 'микрофарад'],
         'нф': ['нанофарад', 'нанофарада', 'нанофарад'],
@@ -522,7 +513,7 @@ def number_to_words_digit_by_digit(n):
 # Update the normalize_text_with_numbers to handle large numbers by reading them digit by digit
 def normalize_text_with_numbers(text, large_number_by_digit_probs=0.5):
     # Detect all standalone numbers in the text
-    detected_numbers = detect_numbers(text)
+    detected_numbers = detect_numbers(text)  # Re-write
     # Sort detected numbers by their starting index in descending order
     detected_numbers.sort(key=lambda x: x['start'], reverse=True)
     
@@ -861,7 +852,7 @@ def normalize_ordinals_years(text):
                 return maybe_text
         return original_text
 
-    ordinals_years_pattern = re.compile(r'(?i)\b(\d+)-([а-я]{1,3})\b')
+    ordinals_years_pattern = re.compile(r'(?i)\b(\d+)-?([а-я]{1,3})\b')
     text = ordinals_years_pattern.sub(_normalize_ordinals_years, text)
     return text
 
