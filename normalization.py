@@ -52,6 +52,7 @@ def normalize_abbreviations(text):
         'изд.': 'издание',
         'обл.': 'область',
         'р-н': 'район',
+        'гг.': 'года'
     }
 
     abbreviations_type_1 = {
@@ -63,6 +64,8 @@ def normalize_abbreviations(text):
         'p.s.': 'постскриптум.',
         'р.s.': 'постскриптум.',
         'п.с.': 'постскриптум.',
+        'п.c.': 'постскриптум.',
+        'з.ы.': 'постскриптум.',
         'н.э.': 'нашей эры',
     }
 
@@ -82,12 +85,15 @@ def normalize_abbreviations(text):
         'д': 'дом',
     }
 
-    def modify_set(abbreviations_set):
+    def modify_set_0(abbreviations_set):
+        return [key.replace('.', r'\.') for key in abbreviations_set]
+
+    def modify_set_1(abbreviations_set):
         sep = ' ?'
         return [sep.join(key).replace('.', r'\.') for key in abbreviations_set]
 
-    abbreviations_pattern_type_0 = re.compile(fr'(?i)\b({"|".join(abbreviations_type_0.keys())})(?!\w)')
-    abbreviations_pattern_type_1 = re.compile(fr'(?i)\b({"|".join(modify_set(abbreviations_type_1.keys()))})(?!\w)')
+    abbreviations_pattern_type_0 = re.compile(fr'(?i)\b({"|".join(modify_set_0(abbreviations_type_0.keys()))})(?!\w)')
+    abbreviations_pattern_type_1 = re.compile(fr'(?i)\b({"|".join(modify_set_1(abbreviations_type_1.keys()))})(?!\w)')
     abbreviations_pattern_type_2 = re.compile(fr'\b({"|".join(abbreviations_type_2.keys())})\.? ?(?=[А-Я])')
     abbreviations_pattern_type_3 = re.compile(fr'(?i)\b({"|".join(abbreviations_type_3.keys())})\.? ?(?=\d)')
 
@@ -682,7 +688,36 @@ def currency_normalization(text):
         return text
 
     # Run the detection and conversion on the input text
-    return detect_currency(text)
+    text = detect_currency(text)
+    another_currency_dict = {
+        r'грн': 'uah',
+        r'гр': 'uah',
+        r'руб': 'rub',
+        r'р': 'rub',
+        r'тыс\.? ?грн': (1000, 'uah'),
+        r'т\.? ?гр': (1000, 'uah'),
+        r'тыс\.? ?р': (1000, 'rub'),
+        r'т\.? ?р': (1000, 'rub')
+    }
+    non_w_pattern = re.compile(r'\W+')
+
+    pattern = re.compile(fr'(?<!\w)([\d ]*\d[\d ]*)({"|".join(another_currency_dict.keys())})\b\.?')
+
+    for key, value in tuple(another_currency_dict.items()):
+        another_currency_dict[non_w_pattern.sub('', key)] = value
+
+    def normalize_2(match):
+        amount, currency = match.groups()
+        amount = int(amount.replace(' ', ''))
+        currency = another_currency_dict[non_w_pattern.sub('', currency)]
+        if isinstance(currency, tuple):
+            multiplier, currency = currency
+            amount *= multiplier
+        return currency_to_words(amount, currency)
+
+    text = pattern.sub(normalize_2, text)
+
+    return text
 
 # Updated function to normalize dates in a given text with month names and ordinal days
 def normalize_dates(text, year_word_probability=0.5, genitive_ordinal_day_probability=0.5):
@@ -919,13 +954,13 @@ def normalize_russian(
     year_word_probability=0.5,
     large_number_by_digit_probs=0.5,
     genitive_ordinal_day_probability=0.75):
-    text = normalize_abbreviations(text)
-    if abbreviations_exanding:
-        text = expand_abbreviations(text)
     text = normalize_dates(text, year_word_probability, genitive_ordinal_day_probability)
     text = normalize_years(text)
     text = normalize_ordinals_years(text)
     text = normalize_roman(text)
+    text = normalize_abbreviations(text)
+    if abbreviations_exanding:
+        text = expand_abbreviations(text)
     text = currency_normalization(text)
     text = normalize_phys_units(text)
     text = normalize_text_with_phone_numbers(text)
