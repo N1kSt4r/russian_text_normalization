@@ -52,7 +52,7 @@ def normalize_abbreviations(text):
         'изд.': 'издание',
         'обл.': 'область',
         'р-н': 'район',
-        'гг.': 'года'
+        'гг.': 'годов'
     }
 
     abbreviations_type_1 = {
@@ -92,29 +92,34 @@ def normalize_abbreviations(text):
         sep = ' ?'
         return [sep.join(key).replace('.', r'\.') for key in abbreviations_set]
 
-    abbreviations_pattern_type_0 = re.compile(fr'(?i)\b({"|".join(modify_set_0(abbreviations_type_0.keys()))})(?!\w)')
-    abbreviations_pattern_type_1 = re.compile(fr'(?i)\b({"|".join(modify_set_1(abbreviations_type_1.keys()))})(?!\w)')
-    abbreviations_pattern_type_2 = re.compile(fr'\b({"|".join(abbreviations_type_2.keys())})\.? ?(?=[А-Я])')
-    abbreviations_pattern_type_3 = re.compile(fr'(?i)\b({"|".join(abbreviations_type_3.keys())})\.? ?(?=\d)')
+    abbreviations_pattern_type_0 = re.compile(fr'(?i)\b({"|".join(modify_set_0(abbreviations_type_0.keys()))})(?!\w)( \w)?')
+    abbreviations_pattern_type_1 = re.compile(fr'(?i)\b({"|".join(modify_set_1(abbreviations_type_1.keys()))})(?!\w)( \w)?')
+    abbreviations_pattern_type_2 = re.compile(fr'\b({"|".join(abbreviations_type_2.keys())})\.? ?(?=[А-Я])( \w)?')
+    abbreviations_pattern_type_3 = re.compile(fr'(?i)\b({"|".join(abbreviations_type_3.keys())})\.? ?(?=\d)( \w)?')
 
     def get_replace(dictionary, suffix=''):
         def replace(match):
-            abbreviation, = match.groups()
+            abbreviation, next_letter = match.groups()
             abbreviation = abbreviation.lower().replace(' ', '')
             abbreviation = dictionary[abbreviation]
             if suffix:
                 abbreviation += suffix
+            if next_letter is not None:
+                if next_letter.isupper() and not abbreviation.endswith('.'):
+                    abbreviation += '.'
+                abbreviation += next_letter
             return abbreviation
         return replace
 
-    text = abbreviations_pattern_type_0.sub(get_replace(abbreviations_type_0), text)
-    text = abbreviations_pattern_type_1.sub(get_replace(abbreviations_type_1), text)
-    text = abbreviations_pattern_type_2.sub(get_replace(abbreviations_type_2, suffix=' '), text)
-    text = abbreviations_pattern_type_3.sub(get_replace(abbreviations_type_3, suffix=' '), text)
+    for _ in range(2):
+        text = abbreviations_pattern_type_0.sub(get_replace(abbreviations_type_0), text)
+        text = abbreviations_pattern_type_1.sub(get_replace(abbreviations_type_1), text)
+        text = abbreviations_pattern_type_2.sub(get_replace(abbreviations_type_2, suffix=' '), text)
+        text = abbreviations_pattern_type_3.sub(get_replace(abbreviations_type_3, suffix=' '), text)
     return text
 
 # Функция для замены сокращений на полные формы
-def normalize_phys_units(text):
+def normalize_physical_units(text):
     # Словарь с приставками и их полными формами
     values = {
         '%': ['процент', 'процента', 'процентов'],
@@ -186,19 +191,24 @@ def normalize_phys_units(text):
             return 2
 
     # Регулярное выражение для поиска сокращений
-    pattern = re.compile(fr'(?i)(\d+)( )?({"|".join(values.keys())})(?!\w)')
+    pattern = re.compile(fr'(?i)(\d+)( )?({"|".join(values.keys())})(\.)?(?!\w)( \w)?')
 
     # Функция для замены сокращений на полные формы
     def replace(match):
-        num, is_space, unit = match.groups()
+        num, is_space, unit, dot, next_letter = match.groups()
         key_unit = unit.lower()
         if key_unit in values:
             unit = values[key_unit][russian_plural(int(num))]
-        text = f"{num} {unit}"
+        text = f'{num} {unit}'
+        if next_letter is not None:
+            if dot is not None and next_letter.isupper():
+                text += '.'
+            text += next_letter
         return text
 
-    # Замена сокращений на полные формы
-    return pattern.sub(replace, text)
+    for _ in range(2):
+        text = pattern.sub(replace, text)
+    return text
 
 
 def cyrrilize(text):
@@ -701,19 +711,25 @@ def currency_normalization(text):
     }
     non_w_pattern = re.compile(r'\W+')
 
-    pattern = re.compile(fr'(?<!\w)([\d ]*\d[\d ]*)({"|".join(another_currency_dict.keys())})\b\.?')
+    pattern = re.compile(fr'(?<!\w)([\d ]*\d[\d ]*)({"|".join(another_currency_dict.keys())})\b(\.)?( \w)?')
 
     for key, value in tuple(another_currency_dict.items()):
         another_currency_dict[non_w_pattern.sub('', key)] = value
 
     def normalize_2(match):
-        amount, currency = match.groups()
+        amount, currency, dot, next_letter = match.groups()
         amount = int(amount.replace(' ', ''))
         currency = another_currency_dict[non_w_pattern.sub('', currency)]
         if isinstance(currency, tuple):
             multiplier, currency = currency
             amount *= multiplier
-        return currency_to_words(amount, currency)
+
+        text = currency_to_words(amount, currency)
+        if next_letter is not None:
+            if dot is not None and next_letter.isupper():
+                text += '.'
+            text += next_letter
+        return text
 
     text = pattern.sub(normalize_2, text)
 
@@ -730,9 +746,9 @@ def normalize_dates(text, year_word_probability=0.5, genitive_ordinal_day_probab
     }
 
     # Regular expression for matching dates in DD.MM.YYYY format
-    date_pattern_1 = re.compile(r'\b(\d{2})[. /\\-]{1,2}(\d{2})[. /\\-]{1,2}(\d{4})(\s*г\.|\s*года)?(?!\w)')
+    date_pattern_1 = re.compile(r'\b(\d{2})[. /\\-]{1,2}(\d{2})[. /\\-]{1,2}(\d{4})(\s*г\.|\s*года)?(?!\w)( \w)?')
     date_pattern_2 = re.compile(r'\b(\d{4})[. /\\-]{1,2}(\d{2})[. /\\-]{1,2}(\d{2})\b')
-    date_pattern_3 = re.compile(fr'(?i)\b((\d{{1,2}})[. /\\-]{{0,2}})?({"|".join(month_names.values())})([. /\\-]{{0,2}}(\d{{4}}))?(\s*г\.|\s*года)?(?!\w)')
+    date_pattern_3 = re.compile(fr'(?i)\b((\d{{1,2}})[. /\\-]{{0,2}})?({"|".join(month_names.values())})([. /\\-]{{0,2}}(\d{{4}}))?(\s*г\.|\s*года)?(?!\w)( \w)?')
 
     # Function to normalize a single date
     def normalize_date(day, month, year, year_word_probability):
@@ -761,9 +777,14 @@ def normalize_dates(text, year_word_probability=0.5, genitive_ordinal_day_probab
 
     # Function to normalize a single date DD.MM.YYYY
     def normalize_date_1(match):
-        day, month, year, year_word = match.groups()
+        day, month, year, year_word, next_letter = match.groups()
         custom_year_word_probability = year_word_probability if year_word is None else 1
-        return normalize_date(day, month, year, custom_year_word_probability)
+        text = normalize_date(day, month, year, custom_year_word_probability)
+        if next_letter is not None:
+            if year_word is not None and year_word.endswith('.') and next_letter.isupper():
+                text += '.'
+            text += next_letter
+        return text
 
     # Function to normalize a single date YYYY.MM.DD
     def normalize_date_2(match):
@@ -772,7 +793,7 @@ def normalize_dates(text, year_word_probability=0.5, genitive_ordinal_day_probab
 
     # Function to normalize a single date DD? month YYYY? year?
     def normalize_date_3(match):
-        day, _, month, _, year, year_word = match.groups()
+        day, _, month, _, year, year_word, next_letter = match.groups()
         custom_year_word_probability = year_word_probability
         if year_word is not None:
             custom_year_word_probability = 1
@@ -780,29 +801,18 @@ def normalize_dates(text, year_word_probability=0.5, genitive_ordinal_day_probab
             custom_year_word_probability = 0
         if day is None and year is None:
             return match.group(0)
-        return normalize_date(day, month, year, custom_year_word_probability)
-    
-    # def number_to_words_ordinal(n):
-    #     """
-    #     Convert a number into its ordinal word components in Russian. This function is specific to days of the month,
-    #     where ordinal numbers are required.
-    #     """
-    #     # Russian ordinal numbers for days (1st to 31st) in the genitive case, which is used for dates
-    #     ordinal_days = {
-    #         1: 'первое', 2: 'второе', 3: 'третье', 4: 'четвёртое', 5: 'пятое',
-    #         6: 'шестое', 7: 'седьмое', 8: 'восьмое', 9: 'девятое', 10: 'десятое',
-    #         11: 'одиннадцатое', 12: 'двенадцатое', 13: 'тринадцатое', 14: 'четырнадцатое', 15: 'пятнадцатое',
-    #         16: 'шестнадцатое', 17: 'семнадцатое', 18: 'восемнадцатое', 19: 'девятнадцатое', 20: 'двадцатое',
-    #         21: 'двадцать первое', 22: 'двадцать второе', 23: 'двадцать третье', 24: 'двадцать четвёртое',
-    #         25: 'двадцать пятое', 26: 'двадцать шестое', 27: 'двадцать седьмое', 28: 'двадцать восьмое',
-    #         29: 'двадцать девятое', 30: 'тридцатое', 31: 'тридцать первое'
-    #     }
-    #     return ordinal_days.get(n, '')
+        text = normalize_date(day, month, year, custom_year_word_probability)
+        if next_letter is not None:
+            if year_word is not None and year_word.endswith('.') and next_letter.isupper():
+                text += '.'
+            text += next_letter
+        return text
 
     # Replace all found dates in the text with their normalized forms
-    normalized_text = date_pattern_1.sub(normalize_date_1, text)
-    normalized_text = date_pattern_2.sub(normalize_date_2, normalized_text)
-    normalized_text = date_pattern_3.sub(normalize_date_3, normalized_text)
+    for _ in range(2):
+        normalized_text = date_pattern_1.sub(normalize_date_1, text)
+        normalized_text = date_pattern_2.sub(normalize_date_2, normalized_text)
+        normalized_text = date_pattern_3.sub(normalize_date_3, normalized_text)
 
     # Function to normalize a single date YYYY.MM.DD
     def normalize_utc(match):
@@ -816,7 +826,7 @@ def normalize_dates(text, year_word_probability=0.5, genitive_ordinal_day_probab
 
 def normalize_years(text):
     def normalize_single_year(match):
-        year, ending = match.groups()
+        year, ending, next_letter = match.groups()
         case = 'nominative'
         if ending == 'г.':
             ending = 'год'
@@ -828,11 +838,17 @@ def normalize_years(text):
             case = 'prepositional'
         elif ending == 'годом':
             case = 'instrumental'
-        return f'{number_to_words_ordinal(int(year), case)} {ending}'
+
+        text = f'{number_to_words_ordinal(int(year), case)} {ending}'
+        if next_letter is not None:
+            if next_letter.isupper():
+                text += '.'
+            text += next_letter
+        return text
 
     def normalize_multi_year(match):
         original_text = match.group(0)
-        prefix, year1, union, year2, _, ending = match.groups()
+        prefix, year1, union, year2, _, ending, next_letter = match.groups()
         case = 'nominative'
         if ending == 'гг.':
             ending = 'годы'
@@ -860,15 +876,20 @@ def normalize_years(text):
             text = f'{prefix}{text}'
         if ending is not None:
             text = f'{text} {ending}'
+        if next_letter is not None:
+            if next_letter.isupper():
+                text += '.'
+            text += next_letter
         if original_text.endswith(' '):
             text += ' '
         return text
 
-    multi_year_pattern = re.compile(r'(?i)\b(С )?(\d+) ?(-|по) ?(\d+)( ?(гг\.|годы|годов|годам|годах|годами))?(?!\w)')
-    text = multi_year_pattern.sub(normalize_multi_year, text)
+    multi_year_pattern = re.compile(r'(?i)\b(С )?(\d+) ?(-|по) ?(\d+)( ?(гг\.|годы|годов|годам|годах|годами))?(?!\w)( \w)?')
+    single_year_pattern = re.compile(r'(?i)\b(\d+) ?(г\.|год|года|году|годе|годом)(?!\w)( \w)?')
 
-    single_year_pattern = re.compile(r'(?i)\b(\d+) ?(г\.|год|года|году|годе|годом)(?!\w)')
-    text = single_year_pattern.sub(normalize_single_year, text)
+    for _ in range(2):
+        text = multi_year_pattern.sub(normalize_multi_year, text)
+        text = single_year_pattern.sub(normalize_single_year, text)
 
     return text
 
@@ -894,7 +915,7 @@ def normalize_ordinals_years(text):
 def normalize_roman(text):
     def normalize_signle_roman(match):
         original_text = match.group(0)
-        str_number, _, ending = match.groups()
+        str_number, _, ending, next_letter = match.groups()
         number = roman_to_int(str_number.upper())
         if ending is None and len(str_number) < 4 and (number > 21 or original_text in 'xхi'):
             return original_text
@@ -914,12 +935,16 @@ def normalize_roman(text):
         text = number_to_words_ordinal(number, case)
         if ending is not None:
             text = f'{text} {ending}'
+        if next_letter is not None:
+            if next_letter.isupper():
+                text += '.'
+            text += next_letter
         if original_text.endswith(' '):
             text += ' '
         return text
 
     def normalize_multi_roman(match):
-        number1, number2, _, ending = match.groups()
+        number1, number2, _, ending, next_letter = match.groups()
         case = 'nominative'
         if ending == 'вв.':
             ending = 'века'
@@ -937,15 +962,30 @@ def normalize_roman(text):
         text = f'{number1} - {number2}'
         if ending is not None:
             text = f'{text} {ending}'
+        if next_letter is not None:
+            if next_letter.isupper():
+                text += '.'
+            text += next_letter
         if match.group(0).endswith(' '):
             text += ' '
         return text
 
-    multi_year_pattern = re.compile(r'(?i)\b([IVXХLCDM]+) ?- ?([IVXХLCDM]+)( ?(вв\.|ст\.|века|столетия|веков|столетий|веках|столетиях|векам|столетиям))?(?!\w)')
-    text = multi_year_pattern.sub(normalize_multi_roman, text)
+    multi_year_pattern = re.compile(r'(?i)\b([IVXХLCDM]+) ?- ?([IVXХLCDM]+)( ?(вв\.|ст\.|века|столетия|веков|столетий|веках|столетиях|векам|столетиям))?(?!\w)( \w)?')
+    single_roman_pattern = re.compile(r'(?i)\b([IVXХLCDM]+)( ?(в\.|век|века|веке|веку|ст\.|столетие|столетия|столетии|столетию))?(?!\w)( \w)?')
 
-    single_roman_pattern = re.compile(r'(?i)\b([IVXХLCDM]+)( ?(в\.|век|века|веке|веку|ст\.|столетие|столетия|столетии|столетию))?(?!\w)')
-    text = single_roman_pattern.sub(normalize_signle_roman, text)
+    for _ in range(2):
+        text = multi_year_pattern.sub(normalize_multi_roman, text)
+        text = single_roman_pattern.sub(normalize_signle_roman, text)
+
+    return text
+
+def normalize_capitals(text):
+    capital_letter_pattern = re.compile(r'([.?!]\s*)(\w)')
+    def normalize_capital_letter(match):
+        sign, letter = match.groups()
+        return f'{sign}{letter.upper()}'
+    
+    text = capital_letter_pattern.sub(normalize_capital_letter, text)
     return text
 
 def normalize_russian(
@@ -953,7 +993,9 @@ def normalize_russian(
     abbreviations_exanding=False,
     year_word_probability=0.5,
     large_number_by_digit_probs=0.5,
-    genitive_ordinal_day_probability=0.75):
+    genitive_ordinal_day_probability=0.75,
+    capitalize=True,
+):
     text = normalize_dates(text, year_word_probability, genitive_ordinal_day_probability)
     text = normalize_years(text)
     text = normalize_ordinals_years(text)
@@ -962,9 +1004,11 @@ def normalize_russian(
     if abbreviations_exanding:
         text = expand_abbreviations(text)
     text = currency_normalization(text)
-    text = normalize_phys_units(text)
+    text = normalize_physical_units(text)
     text = normalize_text_with_phone_numbers(text)
     text = normalize_text_with_numbers(text, large_number_by_digit_probs)
     text = cyrrilize(text)
     text = normalize_text_with_numbers_force(text, large_number_by_digit_probs)
+    if capitalize:
+        text = normalize_capitals(text)
     return text
