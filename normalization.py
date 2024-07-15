@@ -123,6 +123,9 @@ def normalize_physical_units(text):
     # Словарь с приставками и их полными формами
     values = {
         '%': ['процент', 'процента', 'процентов'],
+        'кв метр': ['квадратный метр', 'квадратных метра', 'квадратных метров'],
+        'кв метра': ['квадратный метр', 'квадратных метра', 'квадратных метров'],
+        'кв метров': ['квадратный метр', 'квадратных метра', 'квадратных метров'],
         'м2': ['квадратный метр', 'квадратных метра', 'квадратных метров'],
         'м 2': ['квадратный метр', 'квадратных метра', 'квадратных метров'],
         'м3': ['кубический метр', 'кубических метра', 'кубических метров'],
@@ -161,7 +164,6 @@ def normalize_physical_units(text):
         'пс': ['пикосекунда', 'пикосекунды', 'пикосекунд'],
         'мин': ['минута', 'минуты', 'минут'],
         'ч': ['час', 'часа', 'часов'],
-        'к': ['кельвин', 'кельвина', 'кельвинов'],
         'дж': ['джоуль', 'джоуля', 'джоулей'],
         'мдж': ['миллиджоуль', 'миллиджоуля', 'миллиджоулей'],
         'кдж': ['килоджоуль', 'килоджоуля', 'килоджоулей'],
@@ -191,7 +193,7 @@ def normalize_physical_units(text):
             return 2
 
     # Регулярное выражение для поиска сокращений
-    pattern = re.compile(fr'(?i)(\d+)( )?({"|".join(values.keys())})(\.)?(?!\w)( \w)?')
+    conntected_numbers_pattern = re.compile(fr'(?i)(\d+)( )?({"|".join(values.keys())})(\.)?(?!\w)( \w)?')
 
     # Функция для замены сокращений на полные формы
     def replace(match):
@@ -207,7 +209,7 @@ def normalize_physical_units(text):
         return text
 
     for _ in range(2):
-        text = pattern.sub(replace, text)
+        text = conntected_numbers_pattern.sub(replace, text)
     return text
 
 
@@ -270,7 +272,7 @@ def number_to_words(n):
             return units[2]
 
     # Helper function to handle numbers below 1000
-    def under_thousand(number):
+    def under_thousand(number, allow_one=True):
         if number == 0:
             return []
         elif number < 10:
@@ -289,9 +291,13 @@ def number_to_words(n):
     remainder = n % 1_000
 
     if billions:
-        words += under_thousand(billions) + [russian_plural(billions, billion_units)]
+        if billions != 1:
+            words.extend(under_thousand(billions))
+        words.append(russian_plural(billions, billion_units))
     if millions:
-        words += under_thousand(millions) + [russian_plural(millions, million_units)]
+        if millions != 1:
+            words.extend(under_thousand(millions))
+        words.append(russian_plural(millions, million_units))
     if thousands:
         # Special case for 'one' and 'two' in thousands
         if thousands % 10 == 1 and thousands % 100 != 11:
@@ -299,7 +305,7 @@ def number_to_words(n):
         elif thousands % 10 == 2 and thousands % 100 != 12:
             words.append('две')
         else:
-            words += under_thousand(thousands)
+            words.extend(under_thousand(thousands))
         words.append(russian_plural(thousands, thousand_units))
     words += under_thousand(remainder)
 
@@ -510,120 +516,77 @@ def number_to_words_ordinal(num: int, case='nominative'):
     return number_to_ordinal(number_to_words(num), case)
 
 
-def detect_numbers(text):
-    # Regular expression pattern for matching standalone numbers
-    number_pattern = re.compile(r'\b\d+\b')
-    # Find all matches and return them along with their start and end indices
-    matches = list(number_pattern.finditer(text))
-    number_matches = [{'number': match.group(), 'start': match.start(), 'end': match.end()} for match in matches]
-    
-    return number_matches
-
-def number_to_words_digit_by_digit(n):
-    """
-    Convert a number into its word components in Russian, digit by digit.
-    """
+def number_to_words_digit_by_digit(text_num: str):
     units = ['ноль', 'один', 'два', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять']
-    return ' '.join(units[int(digit)] for digit in str(n))
+    return ' '.join(units[int(digit)] for digit in text_num)
 
-# Update the normalize_text_with_numbers to handle large numbers by reading them digit by digit
+
+def normalize_number_form(text):
+    non_digit_pattern = re.compile(r'\D+')
+    number_3digit_pattern = re.compile(r'\b[1-9]\d{,2}((\.|,|\s)\s*\d{3})*\b')
+    def replace_number_form(match):
+        return non_digit_pattern.sub('', match.group(0))
+    return number_3digit_pattern.sub(replace_number_form, text)
+
+
 def normalize_text_with_numbers(text, large_number_by_digit_probs=0.5):
-    # Detect all standalone numbers in the text
-    detected_numbers = detect_numbers(text)  # Re-write
-    # Sort detected numbers by their starting index in descending order
-    detected_numbers.sort(key=lambda x: x['start'], reverse=True)
-    
-    # Replace each number with its normalized form
-    for num in detected_numbers:
-        number_value = int(num['number'])
-        # For large numbers that are out of the range of the 'number_to_words' function, use 'number_to_words_digit_by_digit'
-        if number_value >= 1_000_000_000_000:
-            normalized_number = number_to_words_digit_by_digit(number_value)
-        elif number_value >= 10_000_000:
-            if random.random() < large_number_by_digit_probs:
-                normalized_number = number_to_words_digit_by_digit(number_value)
-            else:
-                normalized_number = number_to_words(number_value)
+    number_pattern = re.compile(r'\b\d+\b')
+
+    def replace_number(match):
+        original_text = match.group(0)
+        number = int(original_text)
+        by_digit = number >= 1_000_000_000_000 or original_text.startswith('0') or \
+            (number >= 10_000_000 and random.random() < large_number_by_digit_probs)
+        if by_digit:
+            return number_to_words_digit_by_digit(original_text)
         else:
-            normalized_number = number_to_words(number_value)
-        # Replace the original number in the text with its normalized form
-        text = text[:num['start']] + normalized_number + text[num['end']:]
-    
-    return text
+            return number_to_words(number)
+        
+    return number_pattern.sub(replace_number, text)
 
 
 def normalize_text_with_numbers_force(text, large_number_by_digit_probs=0.5):
     if not any(char.isdigit() for char in text):
         return text
 
-    # Регулярное выражение для поиска чисел
-    pattern = r'(?<=\D)(?=\d)|(?<=\d)(?=\D)'
-    
-    # Замена найденных позиций на пробелы
-    separated_text = re.sub(pattern, ' ', text)
-    
+    conntected_numbers_pattern = re.compile(r'(?<=\D)(?=\d)|(?<=\d)(?=\D)')
+    separated_text = conntected_numbers_pattern.sub(' ', text)
     normalized_text = normalize_text_with_numbers(separated_text)
 
-    # Удаление двойных пробелов
     cleaned_text = re.sub(r'\s{2,}', ' ', normalized_text)
-
-    # Удаление лишних пробелов перед знаками препинания
     cleaned_text = re.sub(r'\s+([,.!?])', r'\1', cleaned_text)
-
     return cleaned_text
 
 
-def normalize_phone_number(phone_number):
-    # Strip the phone number of all non-numeric characters
-    digits = re.sub(r'\D', '', phone_number)
+def normalize_ru_phone_number(match):
+    phone_number = match.group(0)
+    digits = re.sub(r'[^\d\+]+', '', phone_number)
+    parts = [digits[:-10], digits[-10:-7], digits[-7:-4], digits[-4:-2], digits[-2:]]
+    return normalize_text_with_phone_numbers(' '.join(parts))
 
-    # Define the segments for the Russian phone number
-    segments = {
-        'country_code': digits[:1],  # +7 or 8
-        'area_code': digits[1:4],    # 495
-        'block_1': digits[4:7],      # 123
-        'block_2': digits[7:9],      # 45
-        'block_3': digits[9:11],     # 67
-    }
-
-    # Normalizing the country code
-    if segments['country_code'] == '8':
-        segments['country_code'] = 'восемь'
-    elif segments['country_code'] == '7':
-        segments['country_code'] = 'плюс семь'
-
-    # Normalize each segment using the number_to_words function
-    normalized_segments = {
-        key: number_to_words(int(value)) if key != 'country_code' else value
-        for key, value in segments.items()
-    }
-
-    # Combine the segments into the final spoken form
-    spoken_form = ' '.join(normalized_segments.values())
-
-    return spoken_form
-
-# Correcting the phone number normalization function to handle various formats correctly
 
 def normalize_text_with_phone_numbers(text):
-    # Detect all phone numbers in the text
-    phone_pattern = re.compile(
-        r"(?:\+7|8)\s*\(?\d{3}\)?\s*\d{3}[-\s]?\d{2}[-\s]?\d{2}|8\d{10}"
-    )
-    # We use finditer here instead of findall to get the match objects, which will include the start and end indices.
-    matches = list(phone_pattern.finditer(text))
-    detected_phone_numbers = [{'phone': match.group().strip(), 'start': match.start(), 'end': match.end()} for match in matches]
+    non_digit_pattern = re.compile(r'\D+')
+    spoken_phone_pattern = re.compile(r'(\+)?(\(?\d{1,3}([\( \-\)]+\d{1,4}){2,}\)?)')
+    def replace_spoken_phone(match):
+        original_text = match.group(0)
+        print('!!!!!', original_text)
+        if len(original_text) < 10:
+            return original_text
 
-    # Sort detected phone numbers by their starting index in descending order
-    # This ensures that when we replace them, we don't mess up the indices of the remaining phone numbers
-    detected_phone_numbers.sort(key=lambda x: x['start'], reverse=True)
-    
-    # Replace each phone number with its normalized form
-    for pn in detected_phone_numbers:
-        normalized_phone = normalize_phone_number(pn['phone'])
-        # Replace the original phone number in the text with its normalized form
-        text = text[:pn['start']] + normalized_phone + text[pn['end']:]
-    
+        plus, number, _ = match.groups()
+        numbers = non_digit_pattern.sub(' ', number).split()
+
+        words = list()
+        if plus is not None:
+            words.append('плюс')
+        words.extend(map(number_to_words, map(int, numbers)))
+        return ' '.join(words)
+    text = spoken_phone_pattern.sub(replace_spoken_phone, text)
+
+    # Detect all phone numbers in the text
+    ru_phone_pattern = re.compile(r"(?:\+?7|8)\s*\(?\d{3}\)?\s*\d{3}[-\s]?\d{2}[-\s]?\d{2}|8\d{10}")
+    text = ru_phone_pattern.sub(normalize_ru_phone_number, text)
     return text
 
 # Full function that detects and converts currency in a text to its full Russian word representation
@@ -684,16 +647,16 @@ def currency_normalization(text):
 
     # Detect and convert currencies in the text
     def detect_currency(text):
-        # Check each currency pattern to find matches
+        # Check each currency conntected_numbers_pattern to find matches
         for currency_code, patterns in currency_patterns.items():
-            for pattern in patterns:
-                matches = re.finditer(pattern, text)
+            for conntected_numbers_pattern in patterns:
+                matches = re.finditer(conntected_numbers_pattern, text)
                 for match in matches:
                     # Extract the amount and convert it to words
                     amount = float(match.group(1))
                     currency_words = currency_to_words(amount, currency_code)
                     # Replace the original amount with its word representation in the text
-                    text = re.sub(pattern, currency_words, text, count=1)
+                    text = re.sub(conntected_numbers_pattern, currency_words, text, count=1)
 
         return text
 
@@ -711,7 +674,7 @@ def currency_normalization(text):
     }
     non_w_pattern = re.compile(r'\W+')
 
-    pattern = re.compile(fr'(?<!\w)([\d ]*\d[\d ]*)({"|".join(another_currency_dict.keys())})\b(\.)?( \w)?')
+    conntected_numbers_pattern = re.compile(fr'(?<!\w)([\d ]*\d[\d ]*)({"|".join(another_currency_dict.keys())})\b(\.)?( \w)?')
 
     for key, value in tuple(another_currency_dict.items()):
         another_currency_dict[non_w_pattern.sub('', key)] = value
@@ -731,7 +694,7 @@ def currency_normalization(text):
             text += next_letter
         return text
 
-    text = pattern.sub(normalize_2, text)
+    text = conntected_numbers_pattern.sub(normalize_2, text)
 
     return text
 
@@ -850,7 +813,7 @@ def normalize_years(text):
         original_text = match.group(0)
         prefix, year1, union, year2, _, ending, next_letter = match.groups()
         case = 'nominative'
-        if ending == 'гг.':
+        if ending in ['гг', 'гг.']:
             ending = 'годы'
         elif ending == 'годов':
             case = 'genitive'
@@ -884,7 +847,7 @@ def normalize_years(text):
             text += ' '
         return text
 
-    multi_year_pattern = re.compile(r'(?i)\b(С )?(\d+) ?(-|по) ?(\d+)( ?(гг\.|годы|годов|годам|годах|годами))?(?!\w)( \w)?')
+    multi_year_pattern = re.compile(r'(?i)\b(С )?(\d+) ?(-|по) ?(\d+)( ?(гг\.?|годы|годов|годам|годах|годами))?(?!\w)( \w)?')
     single_year_pattern = re.compile(r'(?i)\b(\d+) ?(г\.|год|года|году|годе|годом)(?!\w)( \w)?')
 
     for _ in range(2):
@@ -946,7 +909,7 @@ def normalize_roman(text):
     def normalize_multi_roman(match):
         number1, number2, _, ending, next_letter = match.groups()
         case = 'nominative'
-        if ending == 'вв.':
+        if ending in ['вв', 'вв.']:
             ending = 'века'
         if ending == 'ст.':
             ending = 'столетия'
@@ -970,7 +933,7 @@ def normalize_roman(text):
             text += ' '
         return text
 
-    multi_year_pattern = re.compile(r'(?i)\b([IVXХLCDM]+) ?- ?([IVXХLCDM]+)( ?(вв\.|ст\.|века|столетия|веков|столетий|веках|столетиях|векам|столетиям))?(?!\w)( \w)?')
+    multi_year_pattern = re.compile(r'(?i)\b([IVXХLCDM]+) ?- ?([IVXХLCDM]+)( ?(вв\.?|ст\.|века|столетия|веков|столетий|веках|столетиях|векам|столетиям))?(?!\w)( \w)?')
     single_roman_pattern = re.compile(r'(?i)\b([IVXХLCDM]+)( ?(в\.|век|века|веке|веку|ст\.|столетие|столетия|столетии|столетию))?(?!\w)( \w)?')
 
     for _ in range(2):
@@ -1003,9 +966,10 @@ def normalize_russian(
     text = normalize_abbreviations(text)
     if abbreviations_exanding:
         text = expand_abbreviations(text)
+    text = normalize_text_with_phone_numbers(text)
+    text = normalize_number_form(text)
     text = currency_normalization(text)
     text = normalize_physical_units(text)
-    text = normalize_text_with_phone_numbers(text)
     text = normalize_text_with_numbers(text, large_number_by_digit_probs)
     text = cyrrilize(text)
     text = normalize_text_with_numbers_force(text, large_number_by_digit_probs)
