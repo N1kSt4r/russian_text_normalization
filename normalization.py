@@ -611,7 +611,7 @@ def normalize_time(text, half_past_hour_prob=0.5, quarter_to_hour_prob=0.5, add_
 
 def normalize_text_with_phone_numbers(text):
     non_digit_pattern = re.compile(r'\D+')
-    spoken_phone_pattern = re.compile(r'(\+)?(\(?\d{1,3}([\( \-\)]+\d{1,4}){2,}\)?)')
+    spoken_phone_pattern = re.compile(r'(?<!\w)(\+)?(\(?\d{1,3}([\( \-\)]+\d{1,4}){2,}\)?)(?!\w)')
     def replace_spoken_phone(match):
         original_text = match.group(0)
         if len(original_text) < 10:
@@ -619,6 +619,8 @@ def normalize_text_with_phone_numbers(text):
 
         plus, number, _ = match.groups()
         numbers = non_digit_pattern.sub(' ', number).split()
+        if not plus and all(map(lambda num: len(num) == 3, numbers[1:])):
+            return original_text 
 
         words = list()
         if plus is not None:
@@ -628,7 +630,7 @@ def normalize_text_with_phone_numbers(text):
     text = spoken_phone_pattern.sub(replace_spoken_phone, text)
 
     # Detect all phone numbers in the text
-    ru_phone_pattern = re.compile(r"(?:\+?7|8)\s*\(?\d{3}\)?\s*\d{3}[-\s]?\d{2}[-\s]?\d{2}|8\d{10}")
+    ru_phone_pattern = re.compile(r"(?<!\w)(?:\+?7|8)\s*\(?\d{3}\)?\s*\d{3}[-\s]?\d{2}[-\s]?\d{2}|8\d{10}(?!\w)")
     text = ru_phone_pattern.sub(normalize_ru_phone_number, text)
     return text
 
@@ -751,7 +753,6 @@ def normalize_dates(text, year_word_prob=0.5, genitive_ordinal_day_prob=0.5):
         '10': 'октября', '11': 'ноября', '12': 'декабря'
     }
 
-    # Regular expression for matching dates in DD.MM.YYYY format
     date_pattern_1 = re.compile(r'\b(\d{2})[. /\\-]{1,2}(\d{2})[. /\\-]{1,2}(\d{4})(\s*г\.|\s*года)?(?!\w)( \w)?')
     date_pattern_2 = re.compile(r'\b(\d{4})[. /\\-]{1,2}(\d{2})[. /\\-]{1,2}(\d{2})\b')
     date_pattern_3 = re.compile(fr'(?i)\b((\d{{1,2}})[. /\\-]{{0,2}})?({"|".join(month_names.values())})([. /\\-]{{0,2}}(\d{{4}}))?(\s*г\.|\s*года)?(?!\w)( \w)?')
