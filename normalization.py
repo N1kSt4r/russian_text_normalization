@@ -158,12 +158,14 @@ def normalize_physical_units(text):
         'ом': ['ом', 'ома', 'омов'],
         'ком': ['килоом', 'килоома', 'килоомов'],
         'гом': ['гигаом', 'гигаома', 'гигаомов'],
+        'сек': ['секунда', 'секунды', 'секунд'],
         'с': ['секунда', 'секунды', 'секунд'],
         'мс': ['милисекунда', 'милисекунды', 'милисекунд'],
         'нс': ['наносекунда', 'наносекунды', 'наносекунд'],
         'пс': ['пикосекунда', 'пикосекунды', 'пикосекунд'],
         'мин': ['минута', 'минуты', 'минут'],
         'ч': ['час', 'часа', 'часов'],
+        'мин': ['минута', 'минуты', 'минут'],
         'дж': ['джоуль', 'джоуля', 'джоулей'],
         'мдж': ['миллиджоуль', 'миллиджоуля', 'миллиджоулей'],
         'кдж': ['килоджоуль', 'килоджоуля', 'килоджоулей'],
@@ -180,9 +182,11 @@ def normalize_physical_units(text):
         'бар': ['бар', 'бара', 'бар'],
         'мбар': ['миллибар', 'миллибара', 'миллибар'],
         'нбар': ['нанобар', 'нанобара', 'нанобар'],
+        'тыс': ['тысяча', 'тысячи', 'тысяч'],
         'млн': ['миллион', 'миллиона', 'миллионов'],
         'млрд': ['миллиард', 'миллиарда', 'миллиардов'],
     }
+    femine_units = {'т', 'мин', 'сек', 'с', 'мс', 'нс', 'пс', 'тыс'}
 
     def russian_plural(number):
         if number % 10 == 1 and number % 100 != 11:
@@ -198,9 +202,14 @@ def normalize_physical_units(text):
     # Функция для замены сокращений на полные формы
     def replace(match):
         num, is_space, unit, dot, next_letter = match.groups()
+        is_femine = unit in femine_units
+        num = int(num)
         key_unit = unit.lower()
         if key_unit in values:
-            unit = values[key_unit][russian_plural(int(num))]
+            unit = values[key_unit][russian_plural(num)]
+        num = number_to_words(num)
+        if is_femine:
+            num = regular_number_to_femine(num)
         text = f'{num} {unit}'
         if next_letter is not None:
             if dot is not None and next_letter.isupper():
@@ -243,6 +252,20 @@ def roman_to_int(s):
         else:
             integer += roman_numerals[s[i]]
     return integer
+
+
+def regular_number_to_femine(text: str):
+    mapping = {
+        'один': 'одна',
+        'два': 'две',
+    }
+    words = text.split()
+    if words[-1] not in mapping:
+        return text
+    words[-1] = mapping[words[-1]]
+    return ' '.join(words)
+
+
 
 def number_to_words(n):
     """
@@ -300,12 +323,8 @@ def number_to_words(n):
         words.append(russian_plural(millions, million_units))
     if thousands:
         # Special case for 'one' and 'two' in thousands
-        if thousands % 10 == 1 and thousands % 100 != 11:
-            pass
-        elif thousands % 10 == 2 and thousands % 100 != 12:
-            words.append('две')
-        else:
-            words.extend(under_thousand(thousands))
+        if thousands > 1:
+            words.append(regular_number_to_femine(' '.join(under_thousand(thousands))))
         words.append(russian_plural(thousands, thousand_units))
     words += under_thousand(remainder)
 
@@ -565,12 +584,36 @@ def normalize_ru_phone_number(match):
     return normalize_text_with_phone_numbers(' '.join(parts))
 
 
+def normalize_time(text, half_past_hour_prob=0.5, quarter_to_hour_prob=0.5, add_time_units_prob=0.2):
+    time_pattern = re.compile(r'\b\d{2}:\d{2}\b')
+    def replace_time(match):
+        hours, minutes = map(int, match.group(0).split(':'))
+        if not hours:
+            if not minutes:
+                return 'полночь'
+            return normalize_physical_units(f'{minutes} мин.')
+        if minutes == 30 and random.random() < half_past_hour_prob:
+            return f'пол {number_to_words_ordinal((hours + 1) % 12, case='genitive')}'
+        if minutes == 45 and random.random() < quarter_to_hour_prob:
+            return f'без пятнадцати {number_to_words((hours + 1) % 12)}'
+        if random.random() < add_time_units_prob:
+            result = normalize_physical_units(f'{hours} ч.')
+            if minutes:
+                result = ' '.join([result, normalize_physical_units(f'{minutes} мин.')])
+            return result
+        if minutes < 10:
+            minutes = f'ноль {number_to_words(minutes)}'
+        else:
+            minutes = number_to_words(minutes)
+        return ' '.join([number_to_words(hours), regular_number_to_femine(minutes)])
+    return time_pattern.sub(replace_time, text)
+
+
 def normalize_text_with_phone_numbers(text):
     non_digit_pattern = re.compile(r'\D+')
     spoken_phone_pattern = re.compile(r'(\+)?(\(?\d{1,3}([\( \-\)]+\d{1,4}){2,}\)?)')
     def replace_spoken_phone(match):
         original_text = match.group(0)
-        print('!!!!!', original_text)
         if len(original_text) < 10:
             return original_text
 
@@ -699,7 +742,7 @@ def currency_normalization(text):
     return text
 
 # Updated function to normalize dates in a given text with month names and ordinal days
-def normalize_dates(text, year_word_probability=0.5, genitive_ordinal_day_probability=0.5):
+def normalize_dates(text, year_word_prob=0.5, genitive_ordinal_day_prob=0.5):
     # Month names in Russian in the genitive case
     month_names = {
         '01': 'января', '02': 'февраля', '03': 'марта',
@@ -714,13 +757,13 @@ def normalize_dates(text, year_word_probability=0.5, genitive_ordinal_day_probab
     date_pattern_3 = re.compile(fr'(?i)\b((\d{{1,2}})[. /\\-]{{0,2}})?({"|".join(month_names.values())})([. /\\-]{{0,2}}(\d{{4}}))?(\s*г\.|\s*года)?(?!\w)( \w)?')
 
     # Function to normalize a single date
-    def normalize_date(day, month, year, year_word_probability):
+    def normalize_date(day, month, year, year_word_prob):
         # Convert day to ordinal word and year to words
         if day is not None:
-            case = 'genitive' if random.random() < genitive_ordinal_day_probability else 'nominative_neuter'
+            case = 'genitive' if random.random() < genitive_ordinal_day_prob else 'nominative_neuter'
             day_word = number_to_words_ordinal(int(day), case)
         if year is not None:
-            year_word = number_to_ordinal(number_to_words(int(year)), case='genitive')
+            year_word = number_to_words_ordinal(int(year), case='genitive')
         # Use the month name from the mapping
         month_name = month_names.get(month, month)
         # Construct the normalized date string in the format "7 января 2021 года"
@@ -730,9 +773,9 @@ def normalize_dates(text, year_word_probability=0.5, genitive_ordinal_day_probab
             text = f'{day_word} {month_name}'
         else:
             text = f'{day_word} {month_name} {year_word}'
-        if year_word_probability != 1:
-            assert 0 <= year_word_probability <= 1
-            if random.random() <= year_word_probability:
+        if year_word_prob != 1:
+            assert 0 <= year_word_prob <= 1
+            if random.random() <= year_word_prob:
                 text += ' года'
         else:
             text += ' года'
@@ -741,8 +784,8 @@ def normalize_dates(text, year_word_probability=0.5, genitive_ordinal_day_probab
     # Function to normalize a single date DD.MM.YYYY
     def normalize_date_1(match):
         day, month, year, year_word, next_letter = match.groups()
-        custom_year_word_probability = year_word_probability if year_word is None else 1
-        text = normalize_date(day, month, year, custom_year_word_probability)
+        custom_year_word_prob = year_word_prob if year_word is None else 1
+        text = normalize_date(day, month, year, custom_year_word_prob)
         if next_letter is not None:
             if year_word is not None and year_word.endswith('.') and next_letter.isupper():
                 text += '.'
@@ -752,19 +795,19 @@ def normalize_dates(text, year_word_probability=0.5, genitive_ordinal_day_probab
     # Function to normalize a single date YYYY.MM.DD
     def normalize_date_2(match):
         year, month, day = match.groups()
-        return normalize_date(day, month, year, year_word_probability)
+        return normalize_date(day, month, year, year_word_prob)
 
     # Function to normalize a single date DD? month YYYY? year?
     def normalize_date_3(match):
         day, _, month, _, year, year_word, next_letter = match.groups()
-        custom_year_word_probability = year_word_probability
+        custom_year_word_prob = year_word_prob
         if year_word is not None:
-            custom_year_word_probability = 1
+            custom_year_word_prob = 1
         elif year is None:
-            custom_year_word_probability = 0
+            custom_year_word_prob = 0
         if day is None and year is None:
             return match.group(0)
-        text = normalize_date(day, month, year, custom_year_word_probability)
+        text = normalize_date(day, month, year, custom_year_word_prob)
         if next_letter is not None:
             if year_word is not None and year_word.endswith('.') and next_letter.isupper():
                 text += '.'
@@ -828,11 +871,11 @@ def normalize_years(text):
             return original_text
 
         if prefix is not None:
-            year1 = number_to_ordinal(number_to_words(int(year1)), 'genitive')
-            year2 = number_to_ordinal(number_to_words(int(year2)), 'nominative')
+            year1 = number_to_words_ordinal(int(year1), 'genitive')
+            year2 = number_to_words_ordinal(int(year2), 'nominative')
         else:
-            year1 = number_to_ordinal(number_to_words(int(year1)), case)
-            year2 = number_to_ordinal(number_to_words(int(year2)), case)
+            year1 = number_to_words_ordinal(int(year1), case)
+            year2 = number_to_words_ordinal(int(year2), case)
 
         text = f'{year1} {union} {year2}'
         if prefix is not None:
@@ -920,8 +963,8 @@ def normalize_roman(text):
             case = 'dative'
         elif ending in ['веках', 'столетиях']:
             case = 'prepositional'
-        number1 = number_to_ordinal(number_to_words(roman_to_int(number1.upper())), case)
-        number2 = number_to_ordinal(number_to_words(roman_to_int(number2.upper())), case)
+        number1 = number_to_words_ordinal(roman_to_int(number1.upper()), case)
+        number2 = number_to_words_ordinal(roman_to_int(number2.upper()), case)
         text = f'{number1} - {number2}'
         if ending is not None:
             text = f'{text} {ending}'
@@ -954,12 +997,16 @@ def normalize_capitals(text):
 def normalize_russian(
     text,
     abbreviations_exanding=False,
-    year_word_probability=0.5,
+    year_word_prob=0.5,
     large_number_by_digit_probs=0.5,
-    genitive_ordinal_day_probability=0.75,
+    genitive_ordinal_day_prob=0.75,
+    half_past_hour_prob=0.5,
+    quarter_to_hour_prob=0.5,
+    add_time_units_prob=0.2,
     capitalize=True,
 ):
-    text = normalize_dates(text, year_word_probability, genitive_ordinal_day_probability)
+    text = normalize_time(text, half_past_hour_prob, quarter_to_hour_prob, add_time_units_prob)
+    text = normalize_dates(text, year_word_prob, genitive_ordinal_day_prob)
     text = normalize_years(text)
     text = normalize_ordinals_years(text)
     text = normalize_roman(text)

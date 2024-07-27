@@ -17,229 +17,229 @@ def test_dates():
     check(
         '29 02 2014. малая',
         'двадцать девятое февраля две тысячи четырнадцатого. Малая',
-        year_word_probability=0, genitive_ordinal_day_probability=0)
+        year_word_prob=0, genitive_ordinal_day_prob=0)
     check(
         '29 02 2014 г. малая',
         'двадцать девятое февраля две тысячи четырнадцатого года малая',
-        year_word_probability=0, genitive_ordinal_day_probability=0)
+        year_word_prob=0, genitive_ordinal_day_prob=0)
     check(
         '29 02 2014 г. Большая',
         'двадцать девятое февраля две тысячи четырнадцатого года. Большая',
-        year_word_probability=0, genitive_ordinal_day_probability=0)
+        year_word_prob=0, genitive_ordinal_day_prob=0)
     check(
         '2014 02 29 utc-0.',
         'двадцать девятое февраля две тысячи четырнадцатого ютиси минус ноль.',
-        year_word_probability=0, genitive_ordinal_day_probability=0)
+        year_word_prob=0, genitive_ordinal_day_prob=0)
     check(
         '29 02 2014 utc-5.',
         'двадцать девятое февраля две тысячи четырнадцатого года ютиси минус пять.',
-        year_word_probability=1, genitive_ordinal_day_probability=0)
+        year_word_prob=1, genitive_ordinal_day_prob=0)
     check(
         '2014 02 29 utc-0.',
         'двадцать девятого февраля две тысячи четырнадцатого ютиси минус ноль.',
-        year_word_probability=0, genitive_ordinal_day_probability=1)
+        year_word_prob=0, genitive_ordinal_day_prob=1)
     check(
         '29 02 2014 utc-5.',
         'двадцать девятого февраля две тысячи четырнадцатого года ютиси минус пять.',
-        year_word_probability=1, genitive_ordinal_day_probability=1)
+        year_word_prob=1, genitive_ordinal_day_prob=1)
     check(
         '29d02d2014 d12 d utc+2.',
         'двадцать девять д ноль два д две тысячи четырнадцать д двенадцать д ютиси плюс два.')
     check(
         '5 марта 2003',
         'пятое марта две тысячи третьего года',
-        year_word_probability=1, genitive_ordinal_day_probability=0)
+        year_word_prob=1, genitive_ordinal_day_prob=0)
     check(
         '5 марта 2003',
         'пятое марта две тысячи третьего',
-        year_word_probability=0, genitive_ordinal_day_probability=0)
+        year_word_prob=0, genitive_ordinal_day_prob=0)
     check(
         '5 марта 2003',
         'пятого марта две тысячи третьего года',
-        year_word_probability=1, genitive_ordinal_day_probability=1)
+        year_word_prob=1, genitive_ordinal_day_prob=1)
     check(
         '5 марта 2003',
         'пятого марта две тысячи третьего',
-        year_word_probability=0, genitive_ordinal_day_probability=1)
+        year_word_prob=0, genitive_ordinal_day_prob=1)
     check(
         '10 февраля 1933 г.',
         'десятое февраля тысяча девятьсот тридцать третьего года',
-        year_word_probability=0, genitive_ordinal_day_probability=0)
+        year_word_prob=0, genitive_ordinal_day_prob=0)
     check(
         '10 февраля 1933 г.',
         'десятого февраля тысяча девятьсот тридцать третьего года',
-        year_word_probability=0, genitive_ordinal_day_probability=1)
+        year_word_prob=0, genitive_ordinal_day_prob=1)
     check(
         '10 февраля 1933. малая',
         'десятого февраля тысяча девятьсот тридцать третьего. Малая',
-        year_word_probability=0, genitive_ordinal_day_probability=1)
+        year_word_prob=0, genitive_ordinal_day_prob=1)
     check(
         '10 февраля 1933 г. малая',
         'десятого февраля тысяча девятьсот тридцать третьего года малая',
-        year_word_probability=0, genitive_ordinal_day_probability=1)
+        year_word_prob=0, genitive_ordinal_day_prob=1)
     check(
         '10 февраля 1933 г. Большая',
         'десятого февраля тысяча девятьсот тридцать третьего года. Большая',
-        year_word_probability=0, genitive_ordinal_day_probability=1)
+        year_word_prob=0, genitive_ordinal_day_prob=1)
     check(
         'Марта 2007',
         'Марта две тысячи седьмого года',
-        year_word_probability=1)
+        year_word_prob=1)
     check(
         'Марта 2007',
         'Марта две тысячи седьмого',
-        year_word_probability=0)
+        year_word_prob=0)
     check(
         'Очень полезная книга, изданная в 1904-13 годах.',
         'Очень полезная книга, изданная в тысяча девятьсот четвертом - тринадцатом годах.')
     check(
         'Село просыпалось. 08. 08. 2001г. -.',
         'Село просыпалось. Восьмое августа две тысячи первого года -.',
-        year_word_probability=0,
-        genitive_ordinal_day_probability=0)
+        year_word_prob=0,
+        genitive_ordinal_day_prob=0)
     check(
         'Село просыпалось. 08. 08. 2001г. -.',
         'Село просыпалось. Восьмого августа две тысячи первого года -.',
-        year_word_probability=0,
-        genitive_ordinal_day_probability=1)
+        year_word_prob=0,
+        genitive_ordinal_day_prob=1)
     check(
         'опубликовано 29. 12. 2014. Содержание',
         'опубликовано двадцать девятого декабря две тысячи четырнадцатого. Содержание',
-        year_word_probability=0,
-        genitive_ordinal_day_probability=1)
+        year_word_prob=0,
+        genitive_ordinal_day_prob=1)
 
     check(
         '20 мая 2013г.',
         'двадцатого мая две тысячи тринадцатого года',
-        year_word_probability=0,
-        genitive_ordinal_day_probability=1)
+        year_word_prob=0,
+        genitive_ordinal_day_prob=1)
     check(
         '20 мая 2013 года',
         'двадцатого мая две тысячи тринадцатого года',
-        year_word_probability=0,
-        genitive_ordinal_day_probability=1)
+        year_word_prob=0,
+        genitive_ordinal_day_prob=1)
     check(
         '20 мая 2013',
         'двадцатого мая две тысячи тринадцатого',
-        year_word_probability=0,
-        genitive_ordinal_day_probability=1)
+        year_word_prob=0,
+        genitive_ordinal_day_prob=1)
     check(
         '20 мая',
         'двадцатого мая',
-        genitive_ordinal_day_probability=1)
+        genitive_ordinal_day_prob=1)
     check(
         'мая 2013',
         'мая две тысячи тринадцатого',
-        year_word_probability=0)
+        year_word_prob=0)
     check(
         'слово 20 мая 2013г. слово',
         'слово двадцатого мая две тысячи тринадцатого года слово',
-        year_word_probability=0,
-        genitive_ordinal_day_probability=1)
+        year_word_prob=0,
+        genitive_ordinal_day_prob=1)
     check(
         'слово 20 мая 2013 года слово',
         'слово двадцатого мая две тысячи тринадцатого года слово',
-        year_word_probability=0,
-        genitive_ordinal_day_probability=1)
+        year_word_prob=0,
+        genitive_ordinal_day_prob=1)
     check(
         'слово 20 мая 2013 слово',
         'слово двадцатого мая две тысячи тринадцатого слово',
-        year_word_probability=0,
-        genitive_ordinal_day_probability=1)
+        year_word_prob=0,
+        genitive_ordinal_day_prob=1)
     check(
         'слово 20 мая слово',
         'слово двадцатого мая слово',
-        genitive_ordinal_day_probability=1)
+        genitive_ordinal_day_prob=1)
     check(
         'слово мая 2013 слово',
         'слово мая две тысячи тринадцатого слово',
-        year_word_probability=0)
+        year_word_prob=0)
     check(
         'слово 20 мая 2013. слово',
         'слово двадцатого мая две тысячи тринадцатого. Слово',
-        year_word_probability=0,
-        genitive_ordinal_day_probability=1)
+        year_word_prob=0,
+        genitive_ordinal_day_prob=1)
     check(
         'слово 20 мая. слово',
         'слово двадцатого мая. Слово',
-        genitive_ordinal_day_probability=1)
+        genitive_ordinal_day_prob=1)
     check(
         'слово мая 2013. слово',
         'слово мая две тысячи тринадцатого. Слово',
-        year_word_probability=0)
+        year_word_prob=0)
 
-    check('5 марта', 'пятое марта', genitive_ordinal_day_probability=0)
-    check('5 марта', 'пятого марта', genitive_ordinal_day_probability=1)
+    check('5 марта', 'пятое марта', genitive_ordinal_day_prob=0)
+    check('5 марта', 'пятого марта', genitive_ordinal_day_prob=1)
 
     check('1914-2009', 'тысяча девятьсот четырнадцатый - две тысячи девятый')
 
     check(
         'Клюев Николай Алексеевич 10 22 октября 1884 - между 21 и 23 октября 1937 - русский поэт, представитель так называемого новокрестьянского направления в русской поэзии XX века.',
         'Клюев Николай Алексеевич десять двадцать второе октября тысяча восемьсот восемьдесят четвертого - между двадцать один и двадцать третье октября тысяча девятьсот тридцать седьмого - русский поэт, представитель так называемого новокрестьянского направления в русской поэзии двадцатого века.',
-        year_word_probability=0,
-        genitive_ordinal_day_probability=0)
+        year_word_prob=0,
+        genitive_ordinal_day_prob=0)
     check(
         'Клюев Николай Алексеевич 10 22 октября 1884 - между 21 и 23 октября 1937 - русский поэт, представитель так называемого новокрестьянского направления в русской поэзии XX века.',
         'Клюев Николай Алексеевич десять двадцать второе октября тысяча восемьсот восемьдесят четвертого года - между двадцать один и двадцать третье октября тысяча девятьсот тридцать седьмого года - русский поэт, представитель так называемого новокрестьянского направления в русской поэзии двадцатого века.',
-        year_word_probability=1,
-        genitive_ordinal_day_probability=0)
+        year_word_prob=1,
+        genitive_ordinal_day_prob=0)
 
     check(
         'Клюев Николай Алексеевич 10 22 октября 1884 - между 21 и 23 октября 1937 - русский поэт, представитель так называемого новокрестьянского направления в русской поэзии XX века.',
         'Клюев Николай Алексеевич десять двадцать второго октября тысяча восемьсот восемьдесят четвертого - между двадцать один и двадцать третьего октября тысяча девятьсот тридцать седьмого - русский поэт, представитель так называемого новокрестьянского направления в русской поэзии двадцатого века.',
-        year_word_probability=0,
-        genitive_ordinal_day_probability=1)
+        year_word_prob=0,
+        genitive_ordinal_day_prob=1)
     check(
         'Клюев Николай Алексеевич 10 22 октября 1884 - между 21 и 23 октября 1937 - русский поэт, представитель так называемого новокрестьянского направления в русской поэзии XX века.',
         'Клюев Николай Алексеевич десять двадцать второго октября тысяча восемьсот восемьдесят четвертого года - между двадцать один и двадцать третьего октября тысяча девятьсот тридцать седьмого года - русский поэт, представитель так называемого новокрестьянского направления в русской поэзии двадцатого века.',
-        year_word_probability=1,
-        genitive_ordinal_day_probability=1)
+        year_word_prob=1,
+        genitive_ordinal_day_prob=1)
 
     check(
         '24 декабря 1925 года тридцатилетний Сергей Есенин приехал в Ленинград.',
         'двадцать четвертое декабря тысяча девятьсот двадцать пятого года тридцатилетний Сергей Есенин приехал в Ленинград.',
-        year_word_probability=1,
-        genitive_ordinal_day_probability=0)
+        year_word_prob=1,
+        genitive_ordinal_day_prob=0)
     check(
         '24 декабря 1925 года тридцатилетний Сергей Есенин приехал в Ленинград.',
         'двадцать четвертого декабря тысяча девятьсот двадцать пятого года тридцатилетний Сергей Есенин приехал в Ленинград.',
-        year_word_probability=1,
-        genitive_ordinal_day_probability=1)
+        year_word_prob=1,
+        genitive_ordinal_day_prob=1)
     check(
         'С 2001 по 2003 гг. он служил послом США в Индии, а в 2003-2004 гг. был помощником',
         'С две тысячи первого по две тысячи третий годы он служил послом США в Индии, '
         'а в две тысячи третий - две тысячи четвертый годы был помощником',
-        year_word_probability=0)
+        year_word_prob=0)
     check(
         'Сказочная страна Р. 2000 год, только-только чудо-юдо сложило полномочия и царскую корону водрузили на некоего принца, доселе никому неизвестного.',
         'Сказочная страна Р. Двухтысячный год, только-только чудо-юдо сложило полномочия и царскую корону водрузили на некоего принца, доселе никому неизвестного.',
-        year_word_probability=0)
+        year_word_prob=0)
 
     check(
         '5000 года',
         'пятитысячного года',
-        year_word_probability=0)
+        year_word_prob=0)
     check(
         'В 1000 году',
         'В тысячном году',
-        year_word_probability=0)
+        year_word_prob=0)
     check(
         'В 1945 году',
         'В тысяча девятьсот сорок пятом году',
-        year_word_probability=0)
+        year_word_prob=0)
     check(
         'Шел декабрь 1916 года.',
         'Шел декабрь тысяча девятьсот шестнадцатого года.',
-        year_word_probability=0)
+        year_word_prob=0)
     check(
         '2 апреля - 11апреля.',
         'второе апреля - одиннадцатое апреля.',
-        genitive_ordinal_day_probability=0
+        genitive_ordinal_day_prob=0
     )
     check(
         '2 апреля - 11апреля.',
         'второго апреля - одиннадцатого апреля.',
-        genitive_ordinal_day_probability=1
+        genitive_ordinal_day_prob=1
     )
     check(
         'В начале 2000-х',
@@ -390,7 +390,89 @@ def test_numbers():
         'восемь девятьсот двадцать шесть сто двадцать три сорок пять шестьдесят семь')
 
 
+def test_time():
+    check(
+        '123:00',
+        'сто двадцать три:ноль ноль')
+    check(
+        '23:001',
+        'двадцать три:ноль ноль один')
+    check(
+        '23:1',
+        'двадцать три:один')
+    check(
+        '12:00.',
+        'двенадцать часов.',
+        add_time_units_prob=1)
+    check(
+        '12:00 ',
+        'двенадцать ноль ноль ',
+        add_time_units_prob=0)
+    check(
+        ' 13:01',
+        ' тринадцать часов одна минута',
+        add_time_units_prob=1)
+    check(
+        ' 13:01 ',
+        ' тринадцать ноль одна ',
+        add_time_units_prob=0)
+    check(
+        '06:52',
+        'шесть часов пятьдесят две минуты',
+        add_time_units_prob=1)
+    check(
+        '06:52',
+        'шесть пятьдесят две',
+        add_time_units_prob=0)
+    check(
+        '14:30',
+        'четырнадцать тридцать',
+        half_past_hour_prob=0,
+        add_time_units_prob=0)
+    check(
+        '14:30',
+        'четырнадцать часов тридцать минут',
+        half_past_hour_prob=0,
+        add_time_units_prob=1)
+    check(
+        '02:30',
+        'пол третьего',
+        half_past_hour_prob=1)
+    check(
+        '06:45',
+        'шесть сорок пять',
+        quarter_to_hour_prob=0,
+        add_time_units_prob=0)
+    check(
+        '06:45',
+        'шесть часов сорок пять минут',
+        quarter_to_hour_prob=0,
+        add_time_units_prob=1)
+    check(
+        '18:45',
+        'без пятнадцати семь',
+        quarter_to_hour_prob=1)
+    check(
+        '00:00',
+        'полночь')
+    check(
+        '00:01',
+        'одна минута')
+    check(
+        '00:32',
+        'тридцать две минуты')
+    check(
+        '00:15',
+        'пятнадцать минут')
+
+
 def test_units():
+    check(
+        '1000',
+        'тысяча')
+    check(
+        '52012',
+        'пятьдесят две тысячи двенадцать')
     check(
         '100 USD',
         'сто долларов')
@@ -404,6 +486,18 @@ def test_units():
     check(
         '300 т. р',
         'триста тысяч рублей')
+    check(
+        '312 т. р',
+        'триста двенадцать тысяч рублей')
+    check(
+        '321 тыс. р',
+        'триста двадцать одна тысяча рублей')
+    check(
+        '322 тыс.',
+        'триста двадцать две тысячи')
+    check(
+        '325 тыс.',
+        'триста двадцать пять тысяч')
     check(
         '300 т. р. малая',
         'триста тысяч рублей малая')
@@ -449,6 +543,12 @@ def test_units():
     check(
         '15 м',
         'пятнадцать метров')
+    check(
+        '1 мин',
+        'одна минута')
+    check(
+        '2 сек.',
+        'две секунды')
     check(
         'Ставка 1 % годовых',
         'Ставка один процент годовых')
