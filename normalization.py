@@ -327,8 +327,7 @@ def number_to_words(n):
             words.append(regular_number_to_femine(' '.join(under_thousand(thousands))))
         words.append(russian_plural(thousands, thousand_units))
     words += under_thousand(remainder)
-
-    return ' '.join(word for word in words if word)
+    return ' '.join(word.strip() for word in words if word)
 
 def number_to_ordinal(text, case='nominative'):
     """
@@ -585,7 +584,7 @@ def normalize_ru_phone_number(match):
 
 
 def normalize_time(text, half_past_hour_prob=0.5, quarter_to_hour_prob=0.5, add_time_units_prob=0.2):
-    time_pattern = re.compile(r'\b\d{2}:\d{2}\b')
+    time_pattern = re.compile(r'\b\d{2} ?: ?\d{2}\b')
     def replace_time(match):
         hours, minutes = map(int, match.group(0).split(':'))
         if not hours:
@@ -605,7 +604,7 @@ def normalize_time(text, half_past_hour_prob=0.5, quarter_to_hour_prob=0.5, add_
             minutes = f'ноль {number_to_words(minutes)}'
         else:
             minutes = number_to_words(minutes)
-        return ' '.join([number_to_words(hours), regular_number_to_femine(minutes)])
+        return ' '.join([ 'час' if hours == 1 else number_to_words(hours), regular_number_to_femine(minutes)])
     return time_pattern.sub(replace_time, text)
 
 
@@ -719,7 +718,7 @@ def currency_normalization(text):
     }
     non_w_pattern = re.compile(r'\W+')
 
-    conntected_numbers_pattern = re.compile(fr'(?<!\w)([\d ]*\d[\d ]*)({"|".join(another_currency_dict.keys())})\b(\.)?( \w)?')
+    conntected_numbers_pattern = re.compile(fr'(?<!\w)\b([\d ]*\d[\d ]*\b)({"|".join(another_currency_dict.keys())})\b(\.)?( \w)?')
 
     for key, value in tuple(another_currency_dict.items()):
         another_currency_dict[non_w_pattern.sub('', key)] = value
@@ -744,7 +743,7 @@ def currency_normalization(text):
     return text
 
 # Updated function to normalize dates in a given text with month names and ordinal days
-def normalize_dates(text, year_word_prob=0.5, genitive_ordinal_day_prob=0.5):
+def normalize_dates(text, year_word_prob=0.5, genitive_ordinal_day_prob=0.5, allow_short=True):
     # Month names in Russian in the genitive case
     month_names = {
         '01': 'января', '02': 'февраля', '03': 'марта',
@@ -753,18 +752,29 @@ def normalize_dates(text, year_word_prob=0.5, genitive_ordinal_day_prob=0.5):
         '10': 'октября', '11': 'ноября', '12': 'декабря'
     }
 
+    preposition_to_case = {
+        'по ': 'nominative_neuter',
+        'до ': 'genitive',
+        'на ': 'nominative_neuter',
+        'от ': 'genitive',
+        'с ': 'genitive',
+        'а ': 'nominative_neuter',
+        'к ': 'dative',
+    }
+
     date_pattern_1 = re.compile(r'\b(\d{2})[. /\\-]{1,2}(\d{2})[. /\\-]{1,2}(\d{4})(\s*г\.|\s*года)?(?!\w)( \w)?')
     date_pattern_2 = re.compile(r'\b(\d{4})[. /\\-]{1,2}(\d{2})[. /\\-]{1,2}(\d{2})\b')
-    date_pattern_3 = re.compile(fr'(?i)\b((\d{{1,2}})[. /\\-]{{0,2}})?({"|".join(month_names.values())})([. /\\-]{{0,2}}(\d{{4}}))?(\s*г\.|\s*года)?(?!\w)( \w)?')
+    date_pattern_3 = re.compile(fr'(?i)\b([а-я]+ )?((\d{{1,2}})(\s*\-\s*го)?[. /\\-]{{0,2}})?({"|".join(month_names.values())})([. /\\-]{{0,2}}(\d{{4}}))?(\s*г\.|\s*года|\s*\-го)?(?!\w)( \w)?')
 
     # Function to normalize a single date
-    def normalize_date(day, month, year, year_word_prob):
+    def normalize_date(day, month, year, year_word_prob, case=None):
         # Convert day to ordinal word and year to words
-        if day is not None:
-            case = 'genitive' if random.random() < genitive_ordinal_day_prob else 'nominative_neuter'
-            day_word = number_to_words_ordinal(int(day), case)
+        use_year_word_prob = random.random() <= year_word_prob
         if year is not None:
             year_word = number_to_words_ordinal(int(year), case='genitive')
+        if day is not None:
+            case = case or ('genitive' if use_year_word_prob or random.random() < genitive_ordinal_day_prob else 'nominative_neuter')
+            day_word = number_to_words_ordinal(int(day), case)
         # Use the month name from the mapping
         month_name = month_names.get(month, month)
         # Construct the normalized date string in the format "7 января 2021 года"
@@ -774,11 +784,7 @@ def normalize_dates(text, year_word_prob=0.5, genitive_ordinal_day_prob=0.5):
             text = f'{day_word} {month_name}'
         else:
             text = f'{day_word} {month_name} {year_word}'
-        if year_word_prob != 1:
-            assert 0 <= year_word_prob <= 1
-            if random.random() <= year_word_prob:
-                text += ' года'
-        else:
+        if use_year_word_prob:
             text += ' года'
         return text
 
@@ -800,19 +806,24 @@ def normalize_dates(text, year_word_prob=0.5, genitive_ordinal_day_prob=0.5):
 
     # Function to normalize a single date DD? month YYYY? year?
     def normalize_date_3(match):
-        day, _, month, _, year, year_word, next_letter = match.groups()
+        preposition, _, day, day_genitive_ending, month, _, year, year_word, next_letter = match.groups()
         custom_year_word_prob = year_word_prob
+        case = preposition_to_case.get(preposition) or ('genitive' if day_genitive_ending else None)
+        if year_word and year_word.endswith('-го'):
+            year_word = None
         if year_word is not None:
             custom_year_word_prob = 1
         elif year is None:
             custom_year_word_prob = 0
         if day is None and year is None:
             return match.group(0)
-        text = normalize_date(day, month, year, custom_year_word_prob)
+        text = normalize_date(day, month, year, custom_year_word_prob, case)
         if next_letter is not None:
             if year_word is not None and year_word.endswith('.') and next_letter.isupper():
                 text += '.'
             text += next_letter
+        if preposition:
+            text = preposition + text
         return text
 
     # Replace all found dates in the text with their normalized forms
@@ -831,11 +842,19 @@ def normalize_dates(text, year_word_prob=0.5, genitive_ordinal_day_prob=0.5):
 
     return normalized_text
 
-def normalize_years(text):
+def normalize_years(text, allow_short=True):
     def normalize_single_year(match):
         year, ending, next_letter = match.groups()
+        original_text = match.group(0)
+
+        year = int(year)
+        if year < 100:
+            return original_text
+
+        short = False
         case = 'nominative'
         if ending == 'г.':
+            short = True
             ending = 'год'
         elif ending == 'года':
             case = 'genitive'
@@ -846,9 +865,12 @@ def normalize_years(text):
         elif ending == 'годом':
             case = 'instrumental'
 
-        text = f'{number_to_words_ordinal(int(year), case)} {ending}'
+        if short and not allow_short:
+            return original_text
+
+        text = f'{number_to_words_ordinal(year, case)} {ending}'
         if next_letter is not None:
-            if next_letter.isupper():
+            if short and next_letter.isupper():
                 text += '.'
             text += next_letter
         return text
@@ -857,16 +879,24 @@ def normalize_years(text):
         original_text = match.group(0)
         prefix, year1, union, year2, _, ending, next_letter = match.groups()
         case = 'nominative'
-        if ending in ['гг', 'гг.']:
-            ending = 'годы'
-        elif ending == 'годов':
-            case = 'genitive'
-        elif ending == 'годам':
-            case = 'dative'
-        elif ending == 'годах':
-            case = 'prepositional'
-        elif ending == 'годами':
-            case = 'instrumental'
+        short = False
+        if ending:
+            if ending.replace('.', '').replace(' ', '') in ['г', 'гг']:
+                short = True
+                ending = 'годы'
+            elif ending == 'годов':
+                case = 'genitive'
+            elif ending == 'годам':
+                case = 'dative'
+            elif ending == 'годах':
+                case = 'prepositional'
+            elif ending == 'годами':
+                case = 'instrumental'
+        elif not allow_short:
+            return original_text
+
+        if short and not allow_short:
+            return original_text
 
         if ending is None and (len(year1) < 4 or len(year2) < 4):
             return original_text
@@ -884,18 +914,20 @@ def normalize_years(text):
         if ending is not None:
             text = f'{text} {ending}'
         if next_letter is not None:
-            if next_letter.isupper():
+            if short and next_letter.isupper():
                 text += '.'
             text += next_letter
         if original_text.endswith(' '):
             text += ' '
         return text
 
-    multi_year_pattern = re.compile(r'(?i)\b(С )?(\d+) ?(-|по) ?(\d+)( ?(гг\.?|годы|годов|годам|годах|годами))?(?!\w)( \w)?')
+    multi_year_pattern_with_word = re.compile(r'(?i)\b(С )?(\d+) ?(-|по) ?(\d+)( ?(г\.? ?г\.?|г\.?|годы|годов|годам|годах|годами|года))(?!\w)( \w)?')
+    multi_year_pattern_without_word = re.compile(r'(?i)\b(С )?(\d{4}) ?(-|по) ?(\d{4})( ?(г\.? ?г\.?|г\.?|годы|годов|годам|годах|годами|года))?(?!\w)( \w)?')
     single_year_pattern = re.compile(r'(?i)\b(\d+) ?(г\.|год|года|году|годе|годом)(?!\w)( \w)?')
 
     for _ in range(2):
-        text = multi_year_pattern.sub(normalize_multi_year, text)
+        text = multi_year_pattern_with_word.sub(normalize_multi_year, text)
+        text = multi_year_pattern_without_word.sub(normalize_multi_year, text)
         text = single_year_pattern.sub(normalize_single_year, text)
 
     return text
@@ -909,17 +941,20 @@ def normalize_ordinals_years(text):
             'nominative_plural', 'nominative_feminine', 'nominative_neuter',
             'genitive_plural', 'dative_plural']
         num = number_to_words(int(num))
-        for case in cases:
-            maybe_text = number_to_ordinal(num, case)
-            if maybe_text.endswith(ending):
-                return maybe_text
+        try:
+            for case in cases:
+                maybe_text = number_to_ordinal(num, case)
+                if maybe_text.endswith(ending):
+                    return maybe_text
+        except:
+            pass
         return original_text
 
     ordinals_years_pattern = re.compile(r'(?i)\b(\d+)-?([а-я]{1,3})\b')
     text = ordinals_years_pattern.sub(_normalize_ordinals_years, text)
     return text
 
-def normalize_roman(text):
+def normalize_roman(text, allow_short=True):
     def normalize_signle_roman(match):
         original_text = match.group(0)
         str_number, _, ending, next_letter = match.groups()
@@ -927,10 +962,13 @@ def normalize_roman(text):
         if ending is None and len(str_number) < 4 and (number > 21 or original_text in 'xхi'):
             return original_text
 
+        short = False
         case = 'nominative'
         if ending == 'в.':
+            short = True
             ending = 'век'
         if ending == 'ст.':
+            short = True
             ending = 'столетие'
             case = 'nominative_neuter'
         if ending in ['века', 'столетия']:
@@ -939,11 +977,15 @@ def normalize_roman(text):
             case = 'dative'
         elif ending in ['веке', 'столетии']:
             case = 'prepositional'
+
+        if short and not allow_short:
+            return original_text
+
         text = number_to_words_ordinal(number, case)
         if ending is not None:
             text = f'{text} {ending}'
         if next_letter is not None:
-            if next_letter.isupper():
+            if short and next_letter.isupper():
                 text += '.'
             text += next_letter
         if original_text.endswith(' '):
@@ -952,10 +994,17 @@ def normalize_roman(text):
 
     def normalize_multi_roman(match):
         number1, number2, _, ending, next_letter = match.groups()
+        original_text = match.group(0)
+        if number1 == number2 and not ending:
+            return original_text
+
+        short = False
         case = 'nominative'
         if ending in ['вв', 'вв.']:
+            short = True
             ending = 'века'
         if ending == 'ст.':
+            short = True
             ending = 'столетия'
             case = 'nominative_neuter'
         elif ending in ['веков', 'столетий']:
@@ -964,16 +1013,20 @@ def normalize_roman(text):
             case = 'dative'
         elif ending in ['веках', 'столетиях']:
             case = 'prepositional'
+
+        if short and not allow_short:
+            return original_text
+
         number1 = number_to_words_ordinal(roman_to_int(number1.upper()), case)
         number2 = number_to_words_ordinal(roman_to_int(number2.upper()), case)
         text = f'{number1} - {number2}'
         if ending is not None:
             text = f'{text} {ending}'
         if next_letter is not None:
-            if next_letter.isupper():
+            if short and next_letter.isupper():
                 text += '.'
             text += next_letter
-        if match.group(0).endswith(' '):
+        if original_text.endswith(' '):
             text += ' '
         return text
 
@@ -1004,13 +1057,14 @@ def normalize_russian(
     half_past_hour_prob=0.5,
     quarter_to_hour_prob=0.5,
     add_time_units_prob=0.2,
+    allow_short=True,
     capitalize=True,
 ):
     text = normalize_time(text, half_past_hour_prob, quarter_to_hour_prob, add_time_units_prob)
     text = normalize_dates(text, year_word_prob, genitive_ordinal_day_prob)
-    text = normalize_years(text)
+    text = normalize_years(text, allow_short=allow_short)
     text = normalize_ordinals_years(text)
-    text = normalize_roman(text)
+    text = normalize_roman(text, allow_short=allow_short)
     text = normalize_abbreviations(text)
     if abbreviations_exanding:
         text = expand_abbreviations(text)
