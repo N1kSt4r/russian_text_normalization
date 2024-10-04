@@ -1056,8 +1056,8 @@ def normalize_roman(text, allow_short=True, allow_multi=True, allow_single=True)
             text += ' '
         return text
 
-    multi_year_pattern = re.compile(r'(?i)\b([IVXХLCDM]+) ?- ?([IVXХLCDM]+)( ?(вв\.?|ст\.|века|столетия|веков|столетий|веках|столетиях|векам|столетиям))?(?!\w)( \w)?')
-    single_roman_pattern = re.compile(r'(?i)\b([IVXХLCDM]+)( ?(в\.|век|века|веке|веку|ст\.|столетие|столетия|столетии|столетию))?(?!\w)( \w)?')
+    multi_year_pattern = re.compile(r'(?i)(?<!-)\b([IVXХLCDM]+) ?- ?([IVXХLCDM]+)( ?(вв\.?|ст\.|века|столетия|веков|столетий|веках|столетиях|векам|столетиям))?(?!\w)( \w)?')
+    single_roman_pattern = re.compile(r'(?i)(?<!-)\b([IVXХLCDM]+)( ?(в\.|век|века|веке|веку|ст\.|столетие|столетия|столетии|столетию))?(?!\w)( \w)?')
 
     for _ in range(2):
         if allow_multi:
