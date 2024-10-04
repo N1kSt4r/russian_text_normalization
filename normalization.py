@@ -842,7 +842,7 @@ def normalize_dates(text, year_word_prob=0.5, genitive_ordinal_day_prob=0.5, all
 
     return normalized_text
 
-def normalize_years(text, allow_short=True):
+def normalize_years(text, allow_short=True, safe=False, allow_multi=True, allow_single=True):
     def normalize_single_year(match):
         year, ending, next_letter = match.groups()
         original_text = match.group(0)
@@ -868,7 +868,13 @@ def normalize_years(text, allow_short=True):
         if short and not allow_short:
             return original_text
 
-        text = f'{number_to_words_ordinal(year, case)} {ending}'
+        try:
+            text = f'{number_to_words_ordinal(year, case)} {ending}'
+        except Exception as exc:
+            if safe:
+                return original_text
+            raise exc
+
         if next_letter is not None:
             if short and next_letter.isupper():
                 text += '.'
@@ -901,12 +907,17 @@ def normalize_years(text, allow_short=True):
         if ending is None and (len(year1) < 4 or len(year2) < 4):
             return original_text
 
-        if prefix is not None:
-            year1 = number_to_words_ordinal(int(year1), 'genitive')
-            year2 = number_to_words_ordinal(int(year2), 'nominative')
-        else:
-            year1 = number_to_words_ordinal(int(year1), case)
-            year2 = number_to_words_ordinal(int(year2), case)
+        try:
+            if prefix is not None:
+                year1 = number_to_words_ordinal(int(year1), 'genitive')
+                year2 = number_to_words_ordinal(int(year2), 'nominative')
+            else:
+                year1 = number_to_words_ordinal(int(year1), case)
+                year2 = number_to_words_ordinal(int(year2), case)
+        except Exception as exc:
+            if safe:
+                return original_text
+            raise exc
 
         text = f'{year1} {union} {year2}'
         if prefix is not None:
@@ -926,9 +937,11 @@ def normalize_years(text, allow_short=True):
     single_year_pattern = re.compile(r'(?i)\b(\d+) ?(г\.|год|года|году|годе|годом)(?!\w)( \w)?')
 
     for _ in range(2):
-        text = multi_year_pattern_with_word.sub(normalize_multi_year, text)
-        text = multi_year_pattern_without_word.sub(normalize_multi_year, text)
-        text = single_year_pattern.sub(normalize_single_year, text)
+        if allow_multi:
+            text = multi_year_pattern_with_word.sub(normalize_multi_year, text)
+            text = multi_year_pattern_without_word.sub(normalize_multi_year, text)
+        if allow_single:
+            text = single_year_pattern.sub(normalize_single_year, text)
 
     return text
 
@@ -936,12 +949,17 @@ def normalize_ordinals_years(text):
     def _normalize_ordinals_years(match):
         original_text = match.group(0)
         num, ending = match.groups()
+        num = int(num)
+
+        if ending in ['х', 'x'] and num % 10 != 0:
+            return original_text
+
         cases = [
             'nominative', 'genitive', 'dative', 'prepositional', 'instrumental',
             'nominative_plural', 'nominative_feminine', 'nominative_neuter',
             'genitive_plural', 'dative_plural']
-        num = number_to_words(int(num))
         try:
+            num = number_to_words(num)
             for case in cases:
                 maybe_text = number_to_ordinal(num, case)
                 if maybe_text.endswith(ending):
@@ -954,13 +972,16 @@ def normalize_ordinals_years(text):
     text = ordinals_years_pattern.sub(_normalize_ordinals_years, text)
     return text
 
-def normalize_roman(text, allow_short=True):
+def normalize_roman(text, allow_short=True, allow_multi=True, allow_single=True):
     def normalize_signle_roman(match):
         original_text = match.group(0)
         str_number, _, ending, next_letter = match.groups()
         number = roman_to_int(str_number.upper())
-        if ending is None and len(str_number) < 4 and (number > 21 or original_text in 'xхi'):
-            return original_text
+        if ending is None:
+            if not allow_short:
+                return original_text
+            if len(str_number) < 4 and (number > 21 or original_text in 'xхi'):
+                return original_text
 
         short = False
         case = 'nominative'
@@ -994,8 +1015,13 @@ def normalize_roman(text, allow_short=True):
 
     def normalize_multi_roman(match):
         number1, number2, _, ending, next_letter = match.groups()
+        number1 = number1.upper()
+        number2 = number2.upper()
+
         original_text = match.group(0)
-        if number1 == number2 and not ending:
+        if ending is None and not allow_short:
+            return original_text
+        if number1 == number2 and (not ending or frozenset(number1) in (frozenset('X'), frozenset('Х'))):
             return original_text
 
         short = False
@@ -1017,8 +1043,8 @@ def normalize_roman(text, allow_short=True):
         if short and not allow_short:
             return original_text
 
-        number1 = number_to_words_ordinal(roman_to_int(number1.upper()), case)
-        number2 = number_to_words_ordinal(roman_to_int(number2.upper()), case)
+        number1 = number_to_words_ordinal(roman_to_int(number1), case)
+        number2 = number_to_words_ordinal(roman_to_int(number2), case)
         text = f'{number1} - {number2}'
         if ending is not None:
             text = f'{text} {ending}'
@@ -1034,8 +1060,10 @@ def normalize_roman(text, allow_short=True):
     single_roman_pattern = re.compile(r'(?i)\b([IVXХLCDM]+)( ?(в\.|век|века|веке|веку|ст\.|столетие|столетия|столетии|столетию))?(?!\w)( \w)?')
 
     for _ in range(2):
-        text = multi_year_pattern.sub(normalize_multi_roman, text)
-        text = single_roman_pattern.sub(normalize_signle_roman, text)
+        if allow_multi:
+            text = multi_year_pattern.sub(normalize_multi_roman, text)
+        if allow_single:
+            text = single_roman_pattern.sub(normalize_signle_roman, text)
 
     return text
 
